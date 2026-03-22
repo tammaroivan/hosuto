@@ -10,4 +10,5 @@ bun.lockb
 ios/
 android/
 *.tsbuildinfo
+coverage/
 .DS_Store

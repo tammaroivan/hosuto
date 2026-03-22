@@ -47,4 +47,14 @@ export default defineConfig(
     },
   },
   prettier,
+  {
+    rules: {
+      curly: ["error", "all"],
+      "padding-line-between-statements": [
+        "error",
+        { blankLine: "always", prev: ["if", "for", "while", "switch", "try"], next: "*" },
+        { blankLine: "any", prev: ["if", "for", "while", "switch", "try"], next: "if" },
+      ],
+    },
+  },
 );

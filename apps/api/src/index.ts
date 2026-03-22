@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { healthRoute } from "./routes/health";
+import { stacksRoute } from "./routes/stacks";
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -15,7 +16,7 @@ if (isDev) {
 
 // Used for AppType export (Hono RPC pattern)
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const routes = app.route("/api", healthRoute);
+const routes = app.route("/api", healthRoute).route("/api", stacksRoute);
 
 export type AppType = typeof routes;
 

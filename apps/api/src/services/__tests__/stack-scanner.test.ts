@@ -1,0 +1,254 @@
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { scanStacksDirectory } from "../stack-scanner";
+
+const TEST_DIR = join(import.meta.dirname, "__fixtures_scanner__");
+
+function writeFixture(relativePath: string, content: string) {
+  const fullPath = join(TEST_DIR, relativePath);
+  const dir = fullPath.substring(0, fullPath.lastIndexOf("/"));
+  mkdirSync(dir, { recursive: true });
+
+  // Strip common leading whitespace so YAML can be indented with the test code
+  const lines = content.replace(/^\n/, "").replace(/\n\s*$/, "\n").split("\n");
+  const indent = Math.min(
+    ...lines.filter((l) => l.trim()).map((l) => l.match(/^\s*/)![0].length),
+  );
+
+  writeFileSync(fullPath, lines.map((l) => l.slice(indent)).join("\n"));
+  return fullPath;
+}
+
+beforeEach(() => {
+  mkdirSync(TEST_DIR, { recursive: true });
+});
+
+afterEach(() => {
+  rmSync(TEST_DIR, { recursive: true, force: true });
+});
+
+describe("scanStacksDirectory", () => {
+  it("discovers standalone stacks in subdirectories", () => {
+    writeFixture(
+      "gaming/docker-compose.yml",
+      `
+        services:
+          minecraft:
+            image: itzg/minecraft-server
+      `,
+    );
+
+    writeFixture(
+      "media/docker-compose.yml",
+      `
+        services:
+          plex:
+            image: linuxserver/plex
+      `,
+    );
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+
+    expect(stacks).toHaveLength(2);
+    expect(stacks.map((s) => s.name).sort()).toEqual(["gaming", "media"]);
+    expect(stacks[0].files).toHaveLength(1);
+    expect(stacks[1].files).toHaveLength(1);
+  });
+
+  it("discovers a root-level compose file as a stack", () => {
+    writeFixture(
+      "docker-compose.yml",
+      `
+        services:
+          app:
+            image: nginx
+      `,
+    );
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+
+    expect(stacks).toHaveLength(1);
+    expect(stacks[0].files).toHaveLength(1);
+    expect(stacks[0].files[0].services).toEqual(["app"]);
+  });
+
+  it("resolves includes and groups them under the entrypoint stack", () => {
+    writeFixture(
+      "docker-compose.media.yml",
+      `
+        services:
+          plex:
+            image: linuxserver/plex
+          sonarr:
+            image: linuxserver/sonarr
+      `,
+    );
+
+    writeFixture(
+      "docker-compose.yml",
+      `
+        include:
+          - docker-compose.media.yml
+        services:
+          portainer:
+            image: portainer/portainer-ce
+      `,
+    );
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+
+    // Should be ONE stack (the entrypoint), not two
+    expect(stacks).toHaveLength(1);
+    expect(stacks[0].files).toHaveLength(2);
+
+    const allServices = stacks[0].files.flatMap((f) => f.services);
+    expect(allServices.sort()).toEqual(["plex", "portainer", "sonarr"]);
+  });
+
+  it("does not treat included files as standalone entrypoints", () => {
+    writeFixture(
+      "docker-compose.media.yml",
+      `
+        services:
+          plex:
+            image: linuxserver/plex
+      `,
+    );
+
+    writeFixture(
+      "docker-compose.yml",
+      `
+        include:
+          - docker-compose.media.yml
+        services:
+          app:
+            image: nginx
+      `,
+    );
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+    expect(stacks).toHaveLength(1);
+    expect(stacks[0].name).not.toBe("docker-compose.media");
+  });
+
+  it("uses YAML name field as stack name when present", () => {
+    writeFixture(
+      "mystack/docker-compose.yml",
+      `
+        name: custom-name
+        services:
+          app:
+            image: nginx
+      `,
+    );
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+    expect(stacks[0].name).toBe("custom-name");
+  });
+
+  it("falls back to directory name for stack name", () => {
+    writeFixture(
+      "home-automation/docker-compose.yml",
+      `
+        services:
+          homeassistant:
+            image: homeassistant/home-assistant
+      `,
+    );
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+    expect(stacks[0].name).toBe("home-automation");
+  });
+
+  it("prefers docker-compose.yml over compose.yml", () => {
+    writeFixture(
+      "priority/docker-compose.yml",
+      `
+        services:
+          from-docker-compose:
+            image: nginx
+      `,
+    );
+
+    writeFixture(
+      "priority/compose.yml",
+      `
+        services:
+          from-compose:
+            image: nginx
+      `,
+    );
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+    expect(stacks).toHaveLength(1);
+    expect(stacks[0].files[0].services).toEqual(["from-docker-compose"]);
+  });
+
+  it("returns empty array for non-existent directory", () => {
+    const stacks = scanStacksDirectory("/tmp/does-not-exist-hosuto-test");
+    expect(stacks).toEqual([]);
+  });
+
+  it("returns empty array for directory with no compose files", () => {
+    mkdirSync(join(TEST_DIR, "empty-subdir"), { recursive: true });
+    writeFixture("not-a-compose.txt", "hello");
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+    expect(stacks).toEqual([]);
+  });
+
+  it("returns stacks sorted by name", () => {
+    writeFixture("zeta/docker-compose.yml", "services:\n  a:\n    image: alpine");
+    writeFixture("alpha/docker-compose.yml", "services:\n  b:\n    image: alpine");
+    writeFixture("mid/docker-compose.yml", "services:\n  c:\n    image: alpine");
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+    expect(stacks.map((s) => s.name)).toEqual(["alpha", "mid", "zeta"]);
+  });
+
+  it("handles mix of standalone and include-based stacks", () => {
+    writeFixture(
+      "gaming/docker-compose.yml",
+      `
+        services:
+          minecraft:
+            image: itzg/minecraft-server
+      `,
+    );
+
+    writeFixture(
+      "docker-compose.media.yml",
+      `
+        services:
+          plex:
+            image: linuxserver/plex
+      `,
+    );
+
+    writeFixture(
+      "docker-compose.yml",
+      `
+        include:
+          - docker-compose.media.yml
+        services:
+          traefik:
+            image: traefik
+      `,
+    );
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+
+    expect(stacks).toHaveLength(2);
+    const names = stacks.map((s) => s.name).sort();
+    expect(names).toContain("gaming");
+  });
+
+  it("sets containers to empty array and status to stopped", () => {
+    writeFixture("test/docker-compose.yml", "services:\n  a:\n    image: alpine");
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+    expect(stacks[0].containers).toEqual([]);
+    expect(stacks[0].status).toBe("stopped");
+  });
+});
