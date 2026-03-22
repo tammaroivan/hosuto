@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.turbo/
+bun.lockb
+*.db
+*.sqlite
+.env
+.env.local
+.expo/
+ios/
+android/
+*.tsbuildinfo
+.DS_Store
