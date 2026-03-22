@@ -1,19 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "../lib/api";
+import { useHealth } from "../hooks/useHealth";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
 function Dashboard() {
-  const health = useQuery({
-    queryKey: ["health"],
-    queryFn: async () => {
-      const res = await api.api.health.$get();
-      return res.json();
-    },
-  });
+  const health = useHealth();
 
   return (
     <div>
