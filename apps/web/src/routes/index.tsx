@@ -48,30 +48,44 @@ function Dashboard() {
       {health.isLoading && <p className="text-gray-400">Connecting to server...</p>}
       {health.isError && <p className="text-red-400">Failed to connect to server.</p>}
 
-      {stacks.data && (
-        <div className="flex gap-4 text-sm">
-          <div className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-2">
-            <span className="text-gray-400">Containers</span>{" "}
-            <span className="font-medium">{allContainers.length}</span>
-          </div>
-          <div className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-2">
-            <span className="text-gray-400">Running</span>{" "}
-            <span className="font-medium text-green-400">{running}</span>
-          </div>
-          <div className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-2">
-            <span className="text-gray-400">Stopped</span>{" "}
-            <span className="font-medium text-gray-500">{stopped}</span>
-          </div>
-          <div className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-2">
-            <span className="text-gray-400">Stacks</span>{" "}
-            <span className="font-medium">{stacks.data.length}</span>
-          </div>
+      {stacks.isError && (
+        <div className="rounded-lg border border-red-800 bg-red-950 p-4">
+          <p className="text-red-400 font-medium">Failed to load stacks</p>
+          <p className="text-red-500 text-sm mt-1">
+            Could not connect to Docker. Is the Docker socket accessible?
+          </p>
         </div>
       )}
 
+      {stacks.data && (
+        <>
+          {stacks.isFetching && !stacks.isLoading && (
+            <p className="text-xs text-gray-500">Refreshing...</p>
+          )}
+
+          <div className="flex gap-4 text-sm">
+            <div className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-2">
+              <span className="text-gray-400">Containers</span>{" "}
+              <span className="font-medium">{allContainers.length}</span>
+            </div>
+            <div className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-2">
+              <span className="text-gray-400">Running</span>{" "}
+              <span className="font-medium text-green-400">{running}</span>
+            </div>
+            <div className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-2">
+              <span className="text-gray-400">Stopped</span>{" "}
+              <span className="font-medium text-gray-500">{stopped}</span>
+            </div>
+            <div className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-2">
+              <span className="text-gray-400">Stacks</span>{" "}
+              <span className="font-medium">{stacks.data.length}</span>
+            </div>
+          </div>
+        </>
+      )}
+
       {stacks.isLoading && <p className="text-gray-400">Loading stacks...</p>}
-      {stacks.isError && <p className="text-red-400">Failed to load stacks.</p>}
-      {stacks.data && stacks.data.length === 0 && (
+      {stacks.data && stacks.data.length === 0 && !stacks.isError && (
         <p className="text-gray-500">No stacks found. Mount your compose files directory.</p>
       )}
 

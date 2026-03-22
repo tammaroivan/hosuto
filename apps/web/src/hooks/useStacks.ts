@@ -6,7 +6,14 @@ export function useStacks() {
     queryKey: ["stacks"],
     queryFn: async () => {
       const res = await api.stacks.$get();
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch stacks: ${res.status}`);
+      }
+
       return res.json();
     },
+    retry: 2,
+    staleTime: 60000,
   });
 }

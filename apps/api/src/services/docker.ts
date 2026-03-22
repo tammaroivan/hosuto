@@ -1,9 +1,5 @@
-import Docker from "dockerode";
 import type { Container, ContainerStatus, PortMapping } from "@hosuto/shared";
-
-const docker = new Docker({
-  socketPath: process.env.DOCKER_SOCKET || "/var/run/docker.sock",
-});
+import { docker } from "./docker-client";
 
 /**
  * Lists all Docker containers.

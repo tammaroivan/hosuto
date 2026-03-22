@@ -7,8 +7,15 @@ const stacksDir = process.env.STACKS_DIR || DEFAULT_STACKS_DIR;
 
 export const stacksRoute = new Hono().get("/stacks", async (ctx) => {
   const stacks = scanStacksDirectory(stacksDir);
-  const containers = await listContainers();
-  const matched = matchContainersToStacks(stacks, containers);
 
-  return ctx.json(matched);
+  try {
+    const containers = await listContainers();
+    const matched = matchContainersToStacks(stacks, containers);
+
+    return ctx.json(matched);
+  } catch (error) {
+    console.error("Failed to list containers:", error);
+
+    return ctx.json(stacks);
+  }
 });
