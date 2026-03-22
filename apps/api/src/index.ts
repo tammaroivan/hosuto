@@ -13,6 +13,8 @@ if (isDev) {
   app.use("*", cors());
 }
 
+// Used for AppType export (Hono RPC pattern)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const routes = app.route("/api", healthRoute);
 
 export type AppType = typeof routes;

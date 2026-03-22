@@ -15,6 +15,7 @@
     "build": "bun build ./src/index.ts --outdir ./dist --target bun && bun run build:types",
     "build:types": "tsc --emitDeclarationOnly",
     "dev": "tsc --watch --emitDeclarationOnly",
+    "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },

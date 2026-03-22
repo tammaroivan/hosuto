@@ -10,7 +10,13 @@ export interface Container {
   uptime: string | null;
 }
 
-export type ContainerStatus = "running" | "stopped" | "restarting" | "unhealthy" | "exited" | "dead";
+export type ContainerStatus =
+  | "running"
+  | "stopped"
+  | "restarting"
+  | "unhealthy"
+  | "exited"
+  | "dead";
 
 export interface PortMapping {
   hostPort: number;
