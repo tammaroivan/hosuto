@@ -13,10 +13,10 @@ function writeFixture(relativePath: string, content: string) {
   // Strip common leading whitespace so YAML can be indented with the test code
   const lines = content.replace(/^\n/, "").replace(/\n\s*$/, "\n").split("\n");
   const indent = Math.min(
-    ...lines.filter((l) => l.trim()).map((l) => l.match(/^\s*/)![0].length),
+    ...lines.filter((line) => line.trim()).map((line) => line.match(/^\s*/)![0].length),
   );
 
-  writeFileSync(fullPath, lines.map((l) => l.slice(indent)).join("\n"));
+  writeFileSync(fullPath, lines.map((line) => line.slice(indent)).join("\n"));
   return fullPath;
 }
 

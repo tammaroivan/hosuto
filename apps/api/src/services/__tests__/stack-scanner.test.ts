@@ -11,12 +11,15 @@ function writeFixture(relativePath: string, content: string) {
   mkdirSync(dir, { recursive: true });
 
   // Strip common leading whitespace so YAML can be indented with the test code
-  const lines = content.replace(/^\n/, "").replace(/\n\s*$/, "\n").split("\n");
+  const lines = content
+    .replace(/^\n/, "")
+    .replace(/\n\s*$/, "\n")
+    .split("\n");
   const indent = Math.min(
-    ...lines.filter((l) => l.trim()).map((l) => l.match(/^\s*/)![0].length),
+    ...lines.filter((line) => line.trim()).map((line) => line.match(/^\s*/)![0].length),
   );
 
-  writeFileSync(fullPath, lines.map((l) => l.slice(indent)).join("\n"));
+  writeFileSync(fullPath, lines.map((line) => line.slice(indent)).join("\n"));
   return fullPath;
 }
 
@@ -51,7 +54,7 @@ describe("scanStacksDirectory", () => {
     const stacks = scanStacksDirectory(TEST_DIR);
 
     expect(stacks).toHaveLength(2);
-    expect(stacks.map((s) => s.name).sort()).toEqual(["gaming", "media"]);
+    expect(stacks.map((stack) => stack.name).sort()).toEqual(["gaming", "media"]);
     expect(stacks[0].files).toHaveLength(1);
     expect(stacks[1].files).toHaveLength(1);
   });
@@ -102,7 +105,7 @@ describe("scanStacksDirectory", () => {
     expect(stacks).toHaveLength(1);
     expect(stacks[0].files).toHaveLength(2);
 
-    const allServices = stacks[0].files.flatMap((f) => f.services);
+    const allServices = stacks[0].files.flatMap((file) => file.services);
     expect(allServices.sort()).toEqual(["plex", "portainer", "sonarr"]);
   });
 
@@ -204,7 +207,7 @@ describe("scanStacksDirectory", () => {
     writeFixture("mid/docker-compose.yml", "services:\n  c:\n    image: alpine");
 
     const stacks = scanStacksDirectory(TEST_DIR);
-    expect(stacks.map((s) => s.name)).toEqual(["alpha", "mid", "zeta"]);
+    expect(stacks.map((stack) => stack.name)).toEqual(["alpha", "mid", "zeta"]);
   });
 
   it("handles mix of standalone and include-based stacks", () => {
@@ -240,7 +243,7 @@ describe("scanStacksDirectory", () => {
     const stacks = scanStacksDirectory(TEST_DIR);
 
     expect(stacks).toHaveLength(2);
-    const names = stacks.map((s) => s.name).sort();
+    const names = stacks.map((stack) => stack.name).sort();
     expect(names).toContain("gaming");
   });
 

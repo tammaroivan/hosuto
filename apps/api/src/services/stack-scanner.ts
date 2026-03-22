@@ -99,7 +99,7 @@ export function scanStacksDirectory(stacksDir: string): Stack[] {
     });
   }
 
-  return stacks.sort((a, b) => a.name.localeCompare(b.name));
+  return stacks.sort((left, right) => left.name.localeCompare(right.name));
 }
 
 /**

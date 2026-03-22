@@ -18,11 +18,13 @@
   },
   "dependencies": {
     "@hosuto/shared": "workspace:*",
+    "dockerode": "^4.0.10",
     "hono": "^4",
     "yaml": "^2.8.3"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/dockerode": "^4.0.1",
     "typescript": "^5"
   }
 }
