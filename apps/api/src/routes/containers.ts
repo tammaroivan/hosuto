@@ -22,9 +22,8 @@ export const containersRoute = new Hono()
 
     try {
       const container = docker.getContainer(containerId);
-      await container.start();
-      const updated = await getContainer(containerId);
-      return ctx.json(updated);
+      container.start();
+      return ctx.json({ ok: true });
     } catch {
       return ctx.json({ error: "Failed to start container" }, 500);
     }
@@ -34,9 +33,8 @@ export const containersRoute = new Hono()
 
     try {
       const container = docker.getContainer(containerId);
-      await container.stop();
-      const updated = await getContainer(containerId);
-      return ctx.json(updated);
+      container.stop();
+      return ctx.json({ ok: true });
     } catch {
       return ctx.json({ error: "Failed to stop container" }, 500);
     }
@@ -46,9 +44,8 @@ export const containersRoute = new Hono()
 
     try {
       const container = docker.getContainer(containerId);
-      await container.restart();
-      const updated = await getContainer(containerId);
-      return ctx.json(updated);
+      container.restart();
+      return ctx.json({ ok: true });
     } catch {
       return ctx.json({ error: "Failed to restart container" }, 500);
     }

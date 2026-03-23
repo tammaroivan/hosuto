@@ -22,6 +22,42 @@ function broadcast(message: string): void {
   }
 }
 
+export interface ContainerStatusMessage {
+  type: "container:status";
+  payload: {
+    id: string;
+    name: string;
+    action: string;
+    stackName: string | null;
+  };
+}
+
+export function parseDockerEventChunk(chunk: string): ContainerStatusMessage[] {
+  const messages: ContainerStatusMessage[] = [];
+  const lines = chunk.split("\n").filter(Boolean);
+
+  for (const line of lines) {
+    try {
+      const event = JSON.parse(line);
+      const containerId = event.Actor?.ID || event.id;
+
+      messages.push({
+        type: "container:status",
+        payload: {
+          id: containerId,
+          name: event.Actor?.Attributes?.name || containerId?.slice(0, 12),
+          action: event.Action,
+          stackName: event.Actor?.Attributes?.["com.docker.compose.project"] || null,
+        },
+      });
+    } catch {
+      console.warn("Failed to parse Docker event chunk:", line);
+    }
+  }
+
+  return messages;
+}
+
 export async function startDockerEventStream(): Promise<void> {
   reconnecting = false;
 
@@ -33,23 +69,10 @@ export async function startDockerEventStream(): Promise<void> {
   });
 
   eventStream.on("data", (chunk: Buffer) => {
-    try {
-      const event = JSON.parse(chunk.toString());
-      const containerId = event.Actor?.ID || event.id;
+    const messages = parseDockerEventChunk(chunk.toString());
 
-      broadcast(
-        JSON.stringify({
-          type: "container:status",
-          payload: {
-            id: containerId,
-            name: event.Actor?.Attributes?.name || containerId?.slice(0, 12),
-            action: event.Action,
-            stackName: event.Actor?.Attributes?.["com.docker.compose.project"] || null,
-          },
-        }),
-      );
-    } catch {
-      console.warn("Failed to parse Docker event:", chunk.toString());
+    for (const message of messages) {
+      broadcast(JSON.stringify(message));
     }
   });
 

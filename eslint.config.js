@@ -49,6 +49,8 @@ export default defineConfig(
   prettier,
   {
     rules: {
+      "no-restricted-exports": ["error", { restrictDefaultExports: { direct: true } }],
+      "func-style": ["error", "expression"],
       curly: ["error", "all"],
       "padding-line-between-statements": [
         "error",

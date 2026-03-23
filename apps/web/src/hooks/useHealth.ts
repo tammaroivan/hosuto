@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 
-export function useHealth() {
+export const useHealth = () => {
   return useQuery({
     queryKey: ["health"],
     queryFn: async () => {
@@ -9,4 +9,4 @@ export function useHealth() {
       return res.json();
     },
   });
-}
+};

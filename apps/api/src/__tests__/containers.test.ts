@@ -79,63 +79,46 @@ describe("GET /api/containers/:id", () => {
 });
 
 describe("POST /api/containers/:id/start", () => {
-  it("starts a container and returns updated state", async () => {
+  it("fires start and returns ok", async () => {
     const startFn = vi.fn().mockResolvedValue(undefined);
-    const inspectFn = vi.fn().mockResolvedValue(makeInspectInfo());
 
-    mockDocker.getContainer.mockReturnValue({ start: startFn, inspect: inspectFn });
+    mockDocker.getContainer.mockReturnValue({ start: startFn });
 
     const res = await app.request("/api/containers/abc123/start", { method: "POST" });
 
     expect(res.status).toBe(200);
     expect(startFn).toHaveBeenCalled();
     const body = await res.json();
-    expect(body.status).toBe("running");
-  });
-
-  it("returns 500 when start fails", async () => {
-    mockDocker.getContainer.mockReturnValue({
-      start: vi.fn().mockRejectedValue(new Error("already started")),
-    });
-
-    const res = await app.request("/api/containers/abc123/start", { method: "POST" });
-
-    expect(res.status).toBe(500);
+    expect(body.ok).toBe(true);
   });
 });
 
 describe("POST /api/containers/:id/stop", () => {
-  it("stops a container and returns updated state", async () => {
+  it("fires stop and returns ok", async () => {
     const stopFn = vi.fn().mockResolvedValue(undefined);
-    const inspectFn = vi.fn().mockResolvedValue(
-      makeInspectInfo({
-        State: { Status: "exited", Running: false, StartedAt: "" },
-      }),
-    );
 
-    mockDocker.getContainer.mockReturnValue({ stop: stopFn, inspect: inspectFn });
+    mockDocker.getContainer.mockReturnValue({ stop: stopFn });
 
     const res = await app.request("/api/containers/abc123/stop", { method: "POST" });
 
     expect(res.status).toBe(200);
     expect(stopFn).toHaveBeenCalled();
     const body = await res.json();
-    expect(body.status).toBe("exited");
+    expect(body.ok).toBe(true);
   });
 });
 
 describe("POST /api/containers/:id/restart", () => {
-  it("restarts a container and returns updated state", async () => {
+  it("fires restart and returns ok", async () => {
     const restartFn = vi.fn().mockResolvedValue(undefined);
-    const inspectFn = vi.fn().mockResolvedValue(makeInspectInfo());
 
-    mockDocker.getContainer.mockReturnValue({ restart: restartFn, inspect: inspectFn });
+    mockDocker.getContainer.mockReturnValue({ restart: restartFn });
 
     const res = await app.request("/api/containers/abc123/restart", { method: "POST" });
 
     expect(res.status).toBe(200);
     expect(restartFn).toHaveBeenCalled();
     const body = await res.json();
-    expect(body.status).toBe("running");
+    expect(body.ok).toBe(true);
   });
 });

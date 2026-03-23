@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 
-export function useStacks() {
+export const useStacks = () => {
   return useQuery({
     queryKey: ["stacks"],
     queryFn: async () => {
@@ -16,4 +16,4 @@ export function useStacks() {
     retry: 2,
     staleTime: 60000,
   });
-}
+};

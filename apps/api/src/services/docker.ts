@@ -21,7 +21,7 @@ export async function listContainers(): Promise<Container[]> {
       stackName: info.Labels["com.docker.compose.project"] || null,
       ports: mapPorts(info.Ports),
       created: new Date(info.Created * 1000).toISOString(),
-      uptime: info.State === "running" ? info.Status : null,
+      uptime: info.State === "running" ? info.Status.replace(/\s*\(.*\)$/, "") : null,
     };
   });
 }

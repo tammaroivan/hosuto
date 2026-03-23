@@ -16,91 +16,57 @@ const ACTION_TO_STATE: Record<string, { status: Container["status"]; state: stri
   kill: { status: "exited", state: "exited" },
   pause: { status: "stopped", state: "paused" },
   unpause: { status: "running", state: "running" },
-  restart: { status: "restarting", state: "restarting" },
+  restart: { status: "running", state: "running" },
 };
 
-function getStackStatus(containers: Container[]): Stack["status"] {
+const getStackStatus = (containers: Container[]): Stack["status"] => {
   const running = containers.filter((ct) => ct.state === "running").length;
-  const total = containers.length;
 
-  if (total === 0 || running === 0) {
+  if (running === 0) {
     return "stopped";
   }
 
-  if (running === total) {
-    return "running";
-  }
+  return running === containers.length ? "running" : "partial";
+};
 
-  return "partial";
-}
+const updateContainerInStacks = (
+  stacks: Stack[],
+  containerId: string,
+  stateUpdate: { status: Container["status"]; state: string },
+): Stack[] | null => {
+  let changed = false;
 
-export function useDockerEvents() {
+  const updated = stacks.map((stack) => {
+    const idx = stack.containers.findIndex((ct) => ct.id === containerId);
+    if (idx === -1 || stack.containers[idx].state === stateUpdate.state) {
+      return stack;
+    }
+
+    changed = true;
+    const containers = [...stack.containers];
+    containers[idx] = {
+      ...containers[idx],
+      status: stateUpdate.status,
+      state: stateUpdate.state,
+      uptime: stateUpdate.state === "running" ? "Up just now" : null,
+    };
+
+    return { ...stack, containers, status: getStackStatus(containers) };
+  });
+
+  return changed ? updated : null;
+};
+
+export const useDockerEvents = () => {
   const queryClient = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
   const retriesRef = useRef(0);
-  const mountedRef = useRef(true);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const [lastEvent, setLastEvent] = useState<string | null>(null);
 
   useEffect(() => {
-    mountedRef.current = true;
-
-    function handleContainerEvent(payload: {
-      id: string;
-      name: string;
-      action: string;
-      stackName: string | null;
-    }) {
-      setLastEvent(`${payload.name}: ${payload.action}`);
-
-      const stateUpdate = ACTION_TO_STATE[payload.action];
-      if (!stateUpdate) {
-        return;
-      }
-
-      queryClient.setQueryData(["stacks"], (old: Stack[] | undefined) => {
-        if (!old) {
-          return old;
-        }
-
-        return old.map((stack) => {
-          if (stack.name !== payload.stackName) {
-            return stack;
-          }
-
-          const containerIndex = stack.containers.findIndex((ct) => ct.id === payload.id);
-          if (containerIndex === -1) {
-            return stack;
-          }
-
-          const existingContainer = stack.containers[containerIndex];
-          if (existingContainer.state === stateUpdate.state) {
-            return stack;
-          }
-
-          const updatedContainers = [...stack.containers];
-          updatedContainers[containerIndex] = {
-            ...existingContainer,
-            status: stateUpdate.status,
-            state: stateUpdate.state,
-            uptime: stateUpdate.state === "running" ? "Up just now" : null,
-          };
-
-          return {
-            ...stack,
-            containers: updatedContainers,
-            status: getStackStatus(updatedContainers),
-          };
-        });
-      });
-    }
-
-    function connect() {
-      if (!mountedRef.current) {
-        return;
-      }
-
+    const connect = () => {
       if (wsRef.current) {
         wsRef.current.onclose = null;
         wsRef.current.close();
@@ -118,20 +84,31 @@ export function useDockerEvents() {
       socket.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-
-          if (message.type === "container:status") {
-            handleContainerEvent(message.payload);
+          if (message.type !== "container:status") {
+            return;
           }
+
+          const { payload } = message;
+          setLastEvent(`${payload.name}: ${payload.action}`);
+
+          const stateUpdate = ACTION_TO_STATE[payload.action];
+          if (!stateUpdate) {
+            return;
+          }
+
+          queryClient.setQueryData(["stacks"], (old: Stack[] | undefined) => {
+            if (!old) {
+              return old;
+            }
+
+            return updateContainerInStacks(old, payload.id, stateUpdate) ?? old;
+          });
         } catch {
           console.error("Failed to parse WebSocket message:", event.data);
         }
       };
 
       socket.onclose = () => {
-        if (!mountedRef.current) {
-          return;
-        }
-
         setStatus("disconnected");
 
         const delay = Math.min(
@@ -144,13 +121,11 @@ export function useDockerEvents() {
       };
 
       socket.onerror = () => {};
-    }
+    };
 
     connect();
 
     return () => {
-      mountedRef.current = false;
-
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current);
       }
@@ -163,4 +138,4 @@ export function useDockerEvents() {
   }, [queryClient]);
 
   return { status, lastEvent };
-}
+};
