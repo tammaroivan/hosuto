@@ -1,10 +1,5 @@
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { logger } from "hono/logger";
 import { upgradeWebSocket, websocket } from "hono/bun";
-import { healthRoute } from "./routes/health";
-import { stacksRoute } from "./routes/stacks";
-import { containersRoute } from "./routes/containers";
+import { app } from "./app";
 import {
   addClient,
   removeClient,
@@ -12,15 +7,6 @@ import {
   startHeartbeat,
 } from "./services/docker-events";
 import { WS_HEARTBEAT_INTERVAL } from "@hosuto/shared";
-
-const isDev = process.env.NODE_ENV !== "production";
-const app = new Hono();
-
-app.use("*", logger());
-
-if (isDev) {
-  app.use("*", cors());
-}
 
 app.get(
   "/ws",
@@ -34,14 +20,7 @@ app.get(
   })),
 );
 
-// Used for AppType export (Hono RPC pattern)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const routes = app
-  .route("/api", healthRoute)
-  .route("/api", stacksRoute)
-  .route("/api", containersRoute);
-
-export type AppType = typeof routes;
+export type { AppType } from "./app";
 
 startDockerEventStream().catch((error) => {
   console.error("Failed to start Docker event stream:", error.message);
