@@ -66,3 +66,38 @@ export type NotificationEvent =
   | "update_available";
 
 export type NotificationChannel = "expo_push" | "ntfy" | "webhook";
+
+// File API types
+
+export type FileType = "compose" | "env" | "other";
+
+export interface FileNode {
+  path: string;
+  relativePath: string;
+  name: string;
+  type: FileType;
+  content?: string;
+  includedBy: string | null;
+}
+
+export interface StackFileTree {
+  stackName: string;
+  stackDir: string;
+  entrypoint: string;
+  files: FileNode[];
+}
+
+export interface FileContent {
+  path: string;
+  relativePath: string;
+  content: string;
+  type: FileType;
+  size: number;
+  lastModified: string;
+}
+
+export interface FileValidationResult {
+  valid: boolean;
+  output: string;
+  errors: string;
+}

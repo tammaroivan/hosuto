@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseDockerEventChunk } from "../docker-events";
 
-function makeDockerEvent(action: string, id = "abc123", name = "test-container") {
+const makeDockerEvent = (action: string, id = "abc123", name = "test-container") => {
   return JSON.stringify({
     Type: "container",
     Action: action,
@@ -13,7 +13,7 @@ function makeDockerEvent(action: string, id = "abc123", name = "test-container")
       },
     },
   });
-}
+};
 
 describe("parseDockerEventChunk", () => {
   it("parses a single event", () => {
@@ -55,11 +55,9 @@ describe("parseDockerEventChunk", () => {
   });
 
   it("skips malformed lines and parses valid ones", () => {
-    const chunk = [
-      "not valid json",
-      makeDockerEvent("die", "bbb", "redis"),
-      "{also broken",
-    ].join("\n");
+    const chunk = ["not valid json", makeDockerEvent("die", "bbb", "redis"), "{also broken"].join(
+      "\n",
+    );
 
     const messages = parseDockerEventChunk(chunk);
 

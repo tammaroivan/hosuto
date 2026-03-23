@@ -4,15 +4,15 @@ import { docker } from "./docker-client";
 const clients = new Set<WSContext>();
 let reconnecting = false;
 
-export function addClient(ws: WSContext): void {
+export const addClient = (ws: WSContext): void => {
   clients.add(ws);
-}
+};
 
-export function removeClient(ws: WSContext): void {
+export const removeClient = (ws: WSContext): void => {
   clients.delete(ws);
-}
+};
 
-function broadcast(message: string): void {
+const broadcast = (message: string): void => {
   for (const client of clients) {
     try {
       client.send(message);
@@ -20,7 +20,7 @@ function broadcast(message: string): void {
       clients.delete(client);
     }
   }
-}
+};
 
 export interface ContainerStatusMessage {
   type: "container:status";
@@ -32,7 +32,7 @@ export interface ContainerStatusMessage {
   };
 }
 
-export function parseDockerEventChunk(chunk: string): ContainerStatusMessage[] {
+export const parseDockerEventChunk = (chunk: string): ContainerStatusMessage[] => {
   const messages: ContainerStatusMessage[] = [];
   const lines = chunk.split("\n").filter(Boolean);
 
@@ -56,9 +56,9 @@ export function parseDockerEventChunk(chunk: string): ContainerStatusMessage[] {
   }
 
   return messages;
-}
+};
 
-export async function startDockerEventStream(): Promise<void> {
+export const startDockerEventStream = async (): Promise<void> => {
   reconnecting = false;
 
   const eventStream = await docker.getEvents({
@@ -76,7 +76,7 @@ export async function startDockerEventStream(): Promise<void> {
     }
   });
 
-  function reconnect(reason: string) {
+  const reconnect = (reason: string) => {
     if (reconnecting) {
       return;
     }
@@ -87,16 +87,16 @@ export async function startDockerEventStream(): Promise<void> {
     setTimeout(() => {
       startDockerEventStream();
     }, 5000);
-  }
+  };
 
   eventStream.on("error", () => reconnect("error"));
   eventStream.on("end", () => reconnect("ended"));
 
   console.log("Docker event stream started");
-}
+};
 
-export function startHeartbeat(intervalMs: number): NodeJS.Timer {
+export const startHeartbeat = (intervalMs: number): NodeJS.Timer => {
   return setInterval(() => {
     broadcast(JSON.stringify({ type: "ping" }));
   }, intervalMs);
-}
+};

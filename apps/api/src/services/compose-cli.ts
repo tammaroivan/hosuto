@@ -7,7 +7,7 @@ export interface ComposeResult {
   stderr: string;
 }
 
-export function runCompose(entrypoint: string, args: string[]): Promise<ComposeResult> {
+export const runCompose = (entrypoint: string, args: string[]): Promise<ComposeResult> => {
   return new Promise((resolve) => {
     execFile(
       "docker",
@@ -22,25 +22,32 @@ export function runCompose(entrypoint: string, args: string[]): Promise<ComposeR
       },
     );
   });
-}
+};
 
-export async function composeUp(entrypoint: string, services?: string[]): Promise<ComposeResult> {
-  const args = ["up", "-d", ...(services ?? [])];
-  return runCompose(entrypoint, args);
-}
-
-export async function composeDown(entrypoint: string): Promise<ComposeResult> {
-  return runCompose(entrypoint, ["down"]);
-}
-
-export async function composeRestart(entrypoint: string): Promise<ComposeResult> {
-  return runCompose(entrypoint, ["restart"]);
-}
-
-export async function composePull(
+export const composeUp = async (
   entrypoint: string,
   services?: string[],
-): Promise<ComposeResult> {
+): Promise<ComposeResult> => {
+  const args = ["up", "-d", ...(services ?? [])];
+  return runCompose(entrypoint, args);
+};
+
+export const composeDown = async (entrypoint: string): Promise<ComposeResult> => {
+  return runCompose(entrypoint, ["down"]);
+};
+
+export const composeRestart = async (entrypoint: string): Promise<ComposeResult> => {
+  return runCompose(entrypoint, ["restart"]);
+};
+
+export const composePull = async (
+  entrypoint: string,
+  services?: string[],
+): Promise<ComposeResult> => {
   const args = ["pull", ...(services ?? [])];
   return runCompose(entrypoint, args);
-}
+};
+
+export const composeConfig = async (entrypoint: string): Promise<ComposeResult> => {
+  return runCompose(entrypoint, ["config"]);
+};

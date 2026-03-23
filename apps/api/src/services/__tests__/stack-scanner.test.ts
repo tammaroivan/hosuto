@@ -5,7 +5,7 @@ import { scanStacksDirectory } from "../stack-scanner";
 
 const TEST_DIR = join(import.meta.dirname, "__fixtures_scanner__");
 
-function writeFixture(relativePath: string, content: string) {
+const writeFixture = (relativePath: string, content: string) => {
   const fullPath = join(TEST_DIR, relativePath);
   const dir = fullPath.substring(0, fullPath.lastIndexOf("/"));
   mkdirSync(dir, { recursive: true });
@@ -21,7 +21,7 @@ function writeFixture(relativePath: string, content: string) {
 
   writeFileSync(fullPath, lines.map((line) => line.slice(indent)).join("\n"));
   return fullPath;
-}
+};
 
 beforeEach(() => {
   mkdirSync(TEST_DIR, { recursive: true });

@@ -5,20 +5,23 @@ import { parseComposeFile, resolveIncludes } from "../compose-parser";
 
 const TEST_DIR = join(import.meta.dirname, "__fixtures__");
 
-function writeFixture(relativePath: string, content: string) {
+const writeFixture = (relativePath: string, content: string) => {
   const fullPath = join(TEST_DIR, relativePath);
   const dir = fullPath.substring(0, fullPath.lastIndexOf("/"));
   mkdirSync(dir, { recursive: true });
 
   // Strip common leading whitespace so YAML can be indented with the test code
-  const lines = content.replace(/^\n/, "").replace(/\n\s*$/, "\n").split("\n");
+  const lines = content
+    .replace(/^\n/, "")
+    .replace(/\n\s*$/, "\n")
+    .split("\n");
   const indent = Math.min(
     ...lines.filter((line) => line.trim()).map((line) => line.match(/^\s*/)![0].length),
   );
 
   writeFileSync(fullPath, lines.map((line) => line.slice(indent)).join("\n"));
   return fullPath;
-}
+};
 
 beforeEach(() => {
   mkdirSync(TEST_DIR, { recursive: true });

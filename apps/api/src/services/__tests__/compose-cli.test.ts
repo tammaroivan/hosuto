@@ -9,12 +9,12 @@ import { execFile } from "node:child_process";
 
 const mockExecFile = vi.mocked(execFile);
 
-function setupExecFile(error: Error | null, stdout = "", stderr = "") {
+const setupExecFile = (error: Error | null, stdout = "", stderr = "") => {
   mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
     callback?.(error, stdout, stderr);
     return {} as ReturnType<typeof execFile>;
   });
-}
+};
 
 beforeEach(() => {
   vi.clearAllMocks();

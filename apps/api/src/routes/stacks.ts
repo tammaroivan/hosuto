@@ -6,11 +6,11 @@ import { DEFAULT_STACKS_DIR } from "@hosuto/shared";
 
 const stacksDir = process.env.STACKS_DIR || DEFAULT_STACKS_DIR;
 
-function findStackEntrypoint(name: string): string | null {
+const findStackEntrypoint = (name: string): string | null => {
   const stacks = scanStacksDirectory(stacksDir);
   const stack = stacks.find((s) => s.name === name);
   return stack?.entrypoint ?? null;
-}
+};
 
 export const stacksRoute = new Hono()
   .get("/stacks", async (ctx) => {

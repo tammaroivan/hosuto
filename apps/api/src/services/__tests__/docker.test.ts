@@ -9,7 +9,7 @@ interface PortInput {
   Type: string;
 }
 
-function makeContainer(overrides: Partial<Container> = {}): Container {
+const makeContainer = (overrides: Partial<Container> = {}): Container => {
   return {
     id: "abc123",
     name: "test-container",
@@ -22,7 +22,7 @@ function makeContainer(overrides: Partial<Container> = {}): Container {
     uptime: "Up 2 hours",
     ...overrides,
   };
-}
+};
 
 describe("mapStatus", () => {
   it("returns running for running state", () => {

@@ -1,6 +1,6 @@
 import type { Stack } from "@hosuto/shared";
 
-export function makeContainerInfo(overrides: Record<string, unknown> = {}) {
+export const makeContainerInfo = (overrides: Record<string, unknown> = {}) => {
   return {
     Id: "abc123def456",
     Names: ["/test-container"],
@@ -12,9 +12,9 @@ export function makeContainerInfo(overrides: Record<string, unknown> = {}) {
     Created: 1700000000,
     ...overrides,
   };
-}
+};
 
-export function makeInspectInfo(overrides: Record<string, unknown> = {}) {
+export const makeInspectInfo = (overrides: Record<string, unknown> = {}) => {
   return {
     Id: "abc123def456",
     Name: "/test-container",
@@ -30,9 +30,9 @@ export function makeInspectInfo(overrides: Record<string, unknown> = {}) {
     NetworkSettings: { Ports: {} },
     ...overrides,
   };
-}
+};
 
-export function makeStack(overrides: Partial<Stack> = {}): Stack {
+export const makeStack = (overrides: Partial<Stack> = {}): Stack => {
   return {
     name: "mystack",
     entrypoint: "/stacks/mystack/docker-compose.yml",
@@ -41,4 +41,4 @@ export function makeStack(overrides: Partial<Stack> = {}): Stack {
     status: "stopped",
     ...overrides,
   };
-}
+};

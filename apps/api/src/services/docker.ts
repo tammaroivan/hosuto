@@ -6,7 +6,7 @@ import { docker } from "./docker-client";
  *
  * @returns {Promise<Container[]>} A promise that resolves to an array of containers with their metadata.
  */
-export async function listContainers(): Promise<Container[]> {
+export const listContainers = async (): Promise<Container[]> => {
   const containers = await docker.listContainers({ all: true });
 
   return containers.map((info) => {
@@ -24,7 +24,7 @@ export async function listContainers(): Promise<Container[]> {
       uptime: info.State === "running" ? info.Status.replace(/\s*\(.*\)$/, "") : null,
     };
   });
-}
+};
 
 /**
  * Retrieves information about a Docker container.
@@ -32,7 +32,7 @@ export async function listContainers(): Promise<Container[]> {
  * @param containerId - The ID of the container to retrieve
  * @returns A promise that resolves to the container information
  */
-export async function getContainer(containerId: string): Promise<Container> {
+export const getContainer = async (containerId: string): Promise<Container> => {
   const container = docker.getContainer(containerId);
   const info = await container.inspect();
 
@@ -73,7 +73,7 @@ export async function getContainer(containerId: string): Promise<Container> {
     created: info.Created,
     uptime: info.State.Running ? `Up since ${info.State.StartedAt}` : null,
   };
-}
+};
 
 /**
  * Matches containers to their respective stacks and updates the stack status.
@@ -83,9 +83,12 @@ export async function getContainer(containerId: string): Promise<Container> {
  * @param containers - Array of all available containers to match against stacks.
  * @returns The stacks array with containers assigned and status updated based on running container count.
  */
-export function matchContainersToStacks<
+export const matchContainersToStacks = <
   T extends { name: string; containers: Container[]; status: "running" | "partial" | "stopped" },
->(stacks: T[], containers: Container[]): T[] {
+>(
+  stacks: T[],
+  containers: Container[],
+): T[] => {
   for (const stack of stacks) {
     stack.containers = containers.filter((ct) => ct.stackName === stack.name);
 
@@ -104,9 +107,9 @@ export function matchContainersToStacks<
   }
 
   return stacks;
-}
+};
 
-export function mapStatus(state: string, statusText: string): ContainerStatus {
+export const mapStatus = (state: string, statusText: string): ContainerStatus => {
   if (statusText.toLowerCase().includes("unhealthy")) {
     return "unhealthy";
   }
@@ -123,11 +126,11 @@ export function mapStatus(state: string, statusText: string): ContainerStatus {
     default:
       return "stopped";
   }
-}
+};
 
-export function mapPorts(
+export const mapPorts = (
   ports: { PrivatePort: number; PublicPort?: number; Type: string }[],
-): PortMapping[] {
+): PortMapping[] => {
   const seen = new Set<string>();
 
   return ports
@@ -149,4 +152,4 @@ export function mapPorts(
       containerPort: port.PrivatePort,
       protocol: (port.Type as "tcp" | "udp") || "tcp",
     }));
-}
+};

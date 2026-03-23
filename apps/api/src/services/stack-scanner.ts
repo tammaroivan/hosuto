@@ -16,7 +16,7 @@ const COMPOSE_FILENAMES = [
  * @param dir - The directory path to search for compose files
  * @returns The full path to the first compose file found, or null if none exist
  */
-function findComposeFile(dir: string): string | null {
+const findComposeFile = (dir: string): string | null => {
   for (const name of COMPOSE_FILENAMES) {
     const filePath = join(dir, name);
 
@@ -26,7 +26,7 @@ function findComposeFile(dir: string): string | null {
   }
 
   return null;
-}
+};
 
 /**
  * Scans a directory for Docker Compose stack files and builds a list of stacks.
@@ -37,7 +37,7 @@ function findComposeFile(dir: string): string | null {
  * @param stacksDir - The path to the directory containing stack files
  * @returns An array of discovered stacks, sorted alphabetically by name
  */
-export function scanStacksDirectory(stacksDir: string): Stack[] {
+export const scanStacksDirectory = (stacksDir: string): Stack[] => {
   const absoluteDir = resolve(stacksDir);
 
   if (!existsSync(absoluteDir)) {
@@ -100,7 +100,7 @@ export function scanStacksDirectory(stacksDir: string): Stack[] {
   }
 
   return stacks.sort((left, right) => left.name.localeCompare(right.name));
-}
+};
 
 /**
  * Derives the stack name from the given compose directory and stacks directory.
@@ -111,7 +111,7 @@ export function scanStacksDirectory(stacksDir: string): Stack[] {
  * @param stacksDir - The path to the stacks directory
  * @returns The derived stack name
  */
-function deriveStackName(composeDir: string, stacksDir: string): string {
+const deriveStackName = (composeDir: string, stacksDir: string): string => {
   const resolved = resolve(composeDir);
   const stacksResolved = resolve(stacksDir);
 
@@ -120,4 +120,4 @@ function deriveStackName(composeDir: string, stacksDir: string): string {
   }
 
   return basename(resolved);
-}
+};

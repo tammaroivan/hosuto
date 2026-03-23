@@ -22,7 +22,7 @@ interface IncludeEntry {
  * @param filePath - The path to the Docker Compose file to parse.
  * @returns An object containing the parsed compose configuration with services, includes, and environment files.
  */
-export function parseComposeFile(filePath: string): ParsedCompose {
+export const parseComposeFile = (filePath: string): ParsedCompose => {
   const absolutePath = resolve(filePath);
   const content = readFileSync(absolutePath, "utf-8");
   const doc = parse(content);
@@ -71,7 +71,7 @@ export function parseComposeFile(filePath: string): ParsedCompose {
   }
 
   return { name, services, includes, envFiles: [...new Set(envFiles)] };
-}
+};
 
 /**
  * Resolves all included Docker Compose files recursively, starting from an entrypoint file.
@@ -81,13 +81,13 @@ export function parseComposeFile(filePath: string): ParsedCompose {
  * @param stacksDir - The base directory for resolving relative paths
  * @returns An array of resolved compose files with their metadata and contents
  */
-export function resolveIncludes(entrypoint: string, stacksDir: string): ComposeFile[] {
+export const resolveIncludes = (entrypoint: string, stacksDir: string): ComposeFile[] => {
   const absoluteEntry = resolve(entrypoint);
   const absoluteStacksDir = resolve(stacksDir);
   const visited = new Set<string>();
   const files: ComposeFile[] = [];
 
-  function walk(filePath: string, includedBy: string | null): void {
+  const walk = (filePath: string, includedBy: string | null): void => {
     const absolutePath = resolve(filePath);
 
     if (visited.has(absolutePath)) {
@@ -123,8 +123,8 @@ export function resolveIncludes(entrypoint: string, stacksDir: string): ComposeF
       const includePath = isAbsolute(include.path) ? include.path : resolve(fileDir, include.path);
       walk(includePath, absolutePath);
     }
-  }
+  };
 
   walk(absoluteEntry, null);
   return files;
-}
+};
