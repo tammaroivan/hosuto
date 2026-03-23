@@ -1,17 +1,51 @@
 import type { Stack } from "@hosuto/shared";
 import { useContainerAction } from "../hooks/useContainerAction";
+import { useStackAction } from "../hooks/useStackAction";
 import { STATUS_CONFIG, DEFAULT_STATUS } from "../lib/status";
 import { getImageUrl } from "../lib/docker";
 import { ActionButton } from "./ActionButton";
 
 export const StackSection = ({ stack }: { stack: Stack }) => {
-  const action = useContainerAction();
+  const containerAction = useContainerAction();
+  const stackAction = useStackAction();
+  const isStopped = stack.status === "stopped";
 
   return (
     <section>
-      <div className="mb-3 flex items-baseline justify-between px-1">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-white">{stack.name}</h2>
-        <span className="font-mono text-xs text-text-muted">{stack.entrypoint}</span>
+      <div className="mb-3 flex items-center justify-between px-1">
+        <div className="flex items-baseline gap-3">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-white">{stack.name}</h2>
+          <span className="font-mono text-xs text-text-muted">{stack.entrypoint}</span>
+        </div>
+        <div className="flex gap-1.5">
+          {isStopped ? (
+            <ActionButton
+              label="Up"
+              className="text-accent-green"
+              disabled={stackAction.isPending}
+              onClick={() => stackAction.mutate({ name: stack.name, action: "up" })}
+            />
+          ) : (
+            <>
+              <ActionButton
+                label="Restart"
+                disabled={stackAction.isPending}
+                onClick={() => stackAction.mutate({ name: stack.name, action: "restart" })}
+              />
+              <ActionButton
+                label="Pull"
+                disabled={stackAction.isPending}
+                onClick={() => stackAction.mutate({ name: stack.name, action: "pull" })}
+              />
+              <ActionButton
+                label="Down"
+                className="text-accent-rose"
+                disabled={stackAction.isPending}
+                onClick={() => stackAction.mutate({ name: stack.name, action: "down" })}
+              />
+            </>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-[minmax(120px,1fr)_minmax(0,2fr)_100px_120px_150px_auto] overflow-hidden rounded-xl border border-border/50">
@@ -76,21 +110,21 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
                     <ActionButton
                       label="Start"
                       className="text-accent-green"
-                      disabled={action.isPending}
-                      onClick={() => action.mutate({ id: container.id, action: "start" })}
+                      disabled={containerAction.isPending}
+                      onClick={() => containerAction.mutate({ id: container.id, action: "start" })}
                     />
                   ) : (
                     <>
                       <ActionButton
                         label="Restart"
-                        disabled={action.isPending}
-                        onClick={() => action.mutate({ id: container.id, action: "restart" })}
+                        disabled={containerAction.isPending}
+                        onClick={() => containerAction.mutate({ id: container.id, action: "restart" })}
                       />
                       <ActionButton
                         label="Stop"
                         className="text-accent-rose"
-                        disabled={action.isPending}
-                        onClick={() => action.mutate({ id: container.id, action: "stop" })}
+                        disabled={containerAction.isPending}
+                        onClick={() => containerAction.mutate({ id: container.id, action: "stop" })}
                       />
                     </>
                   )}
