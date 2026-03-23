@@ -1,13 +1,28 @@
-import { existsSync, statSync, readFileSync, writeFileSync, renameSync, unlinkSync } from "node:fs";
+import {
+  existsSync,
+  statSync,
+  readFileSync,
+  writeFileSync,
+  renameSync,
+  unlinkSync,
+  mkdtempSync,
+  cpSync,
+  rmSync,
+  readdirSync,
+} from "node:fs";
 import { resolve, relative, basename, dirname, join, extname } from "node:path";
 import { realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { scanStacksDirectory } from "./stack-scanner";
 import { resolveIncludes } from "./compose-parser";
 import { composeConfig, composeUp } from "./compose-cli";
+import { backupFile, listVersions, readVersion } from "./file-history";
 import type {
   FileNode,
   FileContent,
   FileType,
+  FileVersion,
+  RenameResult,
   StackFileTree,
   FileValidationResult,
 } from "@hosuto/shared";
@@ -151,6 +166,42 @@ export const getStackFileTree = (stackName: string, stacksDir: string): StackFil
     }
   }
 
+  const knownPaths = new Set(files.map((f) => f.path));
+  const stackDirEntries = readdirSync(stack.stackDir);
+  for (const entry of stackDirEntries) {
+    const fullPath = join(stack.stackDir, entry);
+    if (knownPaths.has(fullPath)) {
+      continue;
+    }
+
+    const isEnv = entry.startsWith(".env");
+    const isYaml =
+      (entry.endsWith(".yml") || entry.endsWith(".yaml")) &&
+      (entry.includes("compose") || entry.includes("docker"));
+
+    if (!isEnv && !isYaml) {
+      continue;
+    }
+
+    try {
+      const stat = statSync(fullPath);
+      if (!stat.isFile() || stat.size > MAX_FILE_SIZE) {
+        continue;
+      }
+    } catch {
+      continue;
+    }
+
+    files.push({
+      path: fullPath,
+      relativePath: relative(absoluteStacksDir, fullPath),
+      name: entry,
+      type: isEnv ? "env" : "compose",
+      content: readFileSync(fullPath, "utf-8"),
+      includedBy: null,
+    });
+  }
+
   return {
     stackName,
     stackDir: stack.stackDir,
@@ -221,6 +272,10 @@ export const writeFile = (
     throw new Error(`Directory does not exist: ${fileDir}`);
   }
 
+  if (existsSync(filePath)) {
+    backupFile(filePath, stack.stackDir);
+  }
+
   // Atomic write: temp file in same directory, then rename
   const tmpPath = join(fileDir, `.hosuto-tmp-${Date.now()}`);
   try {
@@ -252,28 +307,100 @@ export const writeFile = (
 };
 
 /**
+ * Renames a file on disk. Reports which compose files reference the old name
+ * so the user can update them manually.
+ */
+export const renameFile = (
+  stackName: string,
+  oldRelativePath: string,
+  newRelativePath: string,
+  stacksDir: string,
+): RenameResult => {
+  const stack = findStack(stackName, stacksDir);
+  if (!stack) {
+    throw new Error(`Stack not found: ${stackName}`);
+  }
+
+  const oldAbsolute = resolveAndValidatePath(stack.stackDir, oldRelativePath, stacksDir);
+  const newAbsolute = resolveAndValidatePath(stack.stackDir, newRelativePath, stacksDir);
+
+  if (!existsSync(oldAbsolute)) {
+    throw new Error(`File not found: ${oldRelativePath}`);
+  }
+  if (existsSync(newAbsolute)) {
+    throw new Error(`File already exists: ${newRelativePath}`);
+  }
+
+  const oldName = basename(oldRelativePath);
+
+  // Find compose files that reference the old filename
+  const composeFiles = resolveIncludes(stack.entrypoint, stacksDir);
+  const affectedFiles: string[] = composeFiles
+    .filter((cf) => cf.content.includes(oldName) && cf.path !== oldAbsolute)
+    .map((cf) => cf.relativePath);
+
+  renameSync(oldAbsolute, newAbsolute);
+
+  return {
+    oldPath: oldRelativePath,
+    newPath: newRelativePath,
+    affectedFiles,
+  };
+};
+
+/**
  * Validates a stack's compose configuration using `docker compose config`.
+ * If fileOverrides is provided, copies the stack to a temp dir, applies the
+ * overrides there, and validates without touching the real files.
+ *
+ * @param {Object} stack - The stack configuration object
+ * @param {Object} [fileOverrides] - Optional file overrides to apply
+ * @returns {Promise<boolean>} True if validation passes, false otherwise
  */
 export const validateCompose = async (
   stackName: string,
   stacksDir: string,
+  fileOverrides?: Record<string, string>,
 ): Promise<FileValidationResult | null> => {
   const stack = findStack(stackName, stacksDir);
   if (!stack) {
     return null;
   }
 
-  const result = await composeConfig(stack.entrypoint);
+  if (!fileOverrides || Object.keys(fileOverrides).length === 0) {
+    const result = await composeConfig(stack.entrypoint);
+    return { valid: result.success, output: result.stdout, errors: result.stderr };
+  }
 
-  return {
-    valid: result.success,
-    output: result.stdout,
-    errors: result.stderr,
-  };
+  // Copy stack dir to temp, apply overrides, validate, clean up
+  const tmpDir = mkdtempSync(join(tmpdir(), "hosuto-validate-"));
+  try {
+    cpSync(stack.stackDir, tmpDir, { recursive: true });
+
+    const overrideEntries = Object.entries(fileOverrides);
+    for (const [relativePath, content] of overrideEntries) {
+      writeFileSync(join(tmpDir, relativePath), content, "utf-8");
+    }
+
+    const tmpEntrypoint = join(tmpDir, basename(stack.entrypoint));
+    const result = await composeConfig(tmpEntrypoint);
+
+    return {
+      valid: result.success,
+      output: result.stdout,
+      errors: result.stderr,
+    };
+  } finally {
+    rmSync(tmpDir, { recursive: true, force: true });
+  }
 };
 
 /**
- * Applies a stack's compose configuration using `docker compose up -d`.
+ * Applies a Docker Compose stack by starting its services.
+ *
+ * @param stackName - The name of the stack to apply.
+ * @param stacksDir - The directory containing the stack files.
+ * @returns A promise that resolves to the compose result, or null if the stack is not found.
  */
 export const applyCompose = async (
   stackName: string,
@@ -285,4 +412,30 @@ export const applyCompose = async (
   }
 
   return composeUp(stack.entrypoint);
+};
+
+export const getFileHistory = (
+  stackName: string,
+  relativePath: string,
+  stacksDir: string,
+): FileVersion[] | null => {
+  const stack = findStack(stackName, stacksDir);
+  if (!stack) {
+    return null;
+  }
+
+  return listVersions(stack.stackDir, relativePath);
+};
+
+export const getHistoryContent = (
+  stackName: string,
+  historyFilename: string,
+  stacksDir: string,
+): string | null => {
+  const stack = findStack(stackName, stacksDir);
+  if (!stack) {
+    return null;
+  }
+
+  return readVersion(stack.stackDir, historyFilename);
 };

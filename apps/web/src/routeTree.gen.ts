@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ContainersContainerIdRouteImport } from './routes/containers.$containerId'
+import { Route as StacksStackNameEditRouteImport } from './routes/stacks.$stackName.edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,40 @@ const ContainersContainerIdRoute = ContainersContainerIdRouteImport.update({
   path: '/containers/$containerId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StacksStackNameEditRoute = StacksStackNameEditRouteImport.update({
+  id: '/stacks/$stackName/edit',
+  path: '/stacks/$stackName/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/containers/$containerId': typeof ContainersContainerIdRoute
+  '/stacks/$stackName/edit': typeof StacksStackNameEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/containers/$containerId': typeof ContainersContainerIdRoute
+  '/stacks/$stackName/edit': typeof StacksStackNameEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/containers/$containerId': typeof ContainersContainerIdRoute
+  '/stacks/$stackName/edit': typeof StacksStackNameEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/containers/$containerId'
+  fullPaths: '/' | '/containers/$containerId' | '/stacks/$stackName/edit'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/containers/$containerId'
-  id: '__root__' | '/' | '/containers/$containerId'
+  to: '/' | '/containers/$containerId' | '/stacks/$stackName/edit'
+  id: '__root__' | '/' | '/containers/$containerId' | '/stacks/$stackName/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ContainersContainerIdRoute: typeof ContainersContainerIdRoute
+  StacksStackNameEditRoute: typeof StacksStackNameEditRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContainersContainerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stacks/$stackName/edit': {
+      id: '/stacks/$stackName/edit'
+      path: '/stacks/$stackName/edit'
+      fullPath: '/stacks/$stackName/edit'
+      preLoaderRoute: typeof StacksStackNameEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ContainersContainerIdRoute: ContainersContainerIdRoute,
+  StacksStackNameEditRoute: StacksStackNameEditRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

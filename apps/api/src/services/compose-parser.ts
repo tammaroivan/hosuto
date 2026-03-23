@@ -8,6 +8,7 @@ interface ParsedCompose {
   services: string[];
   includes: IncludeEntry[];
   envFiles: string[];
+  rawContent: string;
 }
 
 interface IncludeEntry {
@@ -25,10 +26,16 @@ interface IncludeEntry {
 export const parseComposeFile = (filePath: string): ParsedCompose => {
   const absolutePath = resolve(filePath);
   const content = readFileSync(absolutePath, "utf-8");
-  const doc = parse(content);
+
+  let doc: Record<string, unknown> | null;
+  try {
+    doc = parse(content);
+  } catch {
+    return { services: [], includes: [], envFiles: [], rawContent: content };
+  }
 
   if (!doc || typeof doc !== "object") {
-    return { services: [], includes: [], envFiles: [] };
+    return { services: [], includes: [], envFiles: [], rawContent: content };
   }
 
   const services = doc.services ? Object.keys(doc.services) : [];
@@ -70,7 +77,7 @@ export const parseComposeFile = (filePath: string): ParsedCompose => {
     }
   }
 
-  return { name, services, includes, envFiles: [...new Set(envFiles)] };
+  return { name, services, includes, envFiles: [...new Set(envFiles)], rawContent: content };
 };
 
 /**
@@ -103,7 +110,6 @@ export const resolveIncludes = (entrypoint: string, stacksDir: string): ComposeF
     visited.add(absolutePath);
 
     const parsed = parseComposeFile(absolutePath);
-    const content = readFileSync(absolutePath, "utf-8");
 
     const relativePath = absolutePath.startsWith(absoluteStacksDir)
       ? relative(absoluteStacksDir, absolutePath)
@@ -112,7 +118,7 @@ export const resolveIncludes = (entrypoint: string, stacksDir: string): ComposeF
     files.push({
       path: absolutePath,
       relativePath,
-      content,
+      content: parsed.rawContent,
       services: parsed.services,
       envFiles: parsed.envFiles,
       includedBy,
@@ -122,6 +128,14 @@ export const resolveIncludes = (entrypoint: string, stacksDir: string): ComposeF
     for (const include of parsed.includes) {
       const includePath = isAbsolute(include.path) ? include.path : resolve(fileDir, include.path);
       walk(includePath, absolutePath);
+
+      // If the include entry has an env_file, attach it to the included file's envFiles
+      if (include.envFile) {
+        const includedFile = files.find((f) => f.path === resolve(includePath));
+        if (includedFile && !includedFile.envFiles.includes(include.envFile)) {
+          includedFile.envFiles.push(include.envFile);
+        }
+      }
     }
   };
 

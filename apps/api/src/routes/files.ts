@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { validator } from "hono/validator";
 import { DEFAULT_STACKS_DIR } from "@hosuto/shared";
 import {
   getStackFileTree,
@@ -6,6 +7,9 @@ import {
   writeFile,
   validateCompose,
   applyCompose,
+  getFileHistory,
+  getHistoryContent,
+  renameFile,
   PathSecurityError,
 } from "../services/file-service";
 
@@ -20,66 +24,49 @@ export const filesRoute = new Hono()
       return ctx.json({ error: "Stack not found" }, 404);
     }
 
-    return ctx.json(tree);
+    return ctx.json(tree, 200);
   })
-  .get("/files/:stackName/*", (ctx) => {
+  .get("/files/:stackName/history/:path{.+}", (ctx) => {
     const stackName = ctx.req.param("stackName");
-    const relativePath = ctx.req.param("*") ?? "";
+    const relativePath = ctx.req.param("path");
+    const versions = getFileHistory(stackName, relativePath, stacksDir);
 
-    if (!relativePath) {
-      return ctx.json({ error: "File path required" }, 400);
-    }
-
-    try {
-      const file = getFileContent(stackName, relativePath, stacksDir);
-
-      if (!file) {
-        return ctx.json({ error: "File not found" }, 404);
-      }
-
-      return ctx.json(file);
-    } catch (err) {
-      if (err instanceof PathSecurityError) {
-        return ctx.json({ error: "Invalid file path" }, 403);
-      }
-
-      return ctx.json({ error: (err as Error).message }, 400);
-    }
-  })
-  .put("/files/:stackName/*", async (ctx) => {
-    const stackName = ctx.req.param("stackName");
-    const relativePath = ctx.req.param("*") ?? "";
-
-    if (!relativePath) {
-      return ctx.json({ error: "File path required" }, 400);
-    }
-
-    const body = await ctx.req.json<{ content: string }>();
-    if (typeof body?.content !== "string") {
-      return ctx.json({ error: "Request body must include 'content' string" }, 400);
-    }
-
-    try {
-      const result = writeFile(stackName, relativePath, body.content, stacksDir);
-      return ctx.json(result);
-    } catch (err) {
-      if (err instanceof PathSecurityError) {
-        return ctx.json({ error: "Invalid file path" }, 403);
-      }
-
-      return ctx.json({ error: (err as Error).message }, 400);
-    }
-  })
-  .post("/files/:stackName/validate", async (ctx) => {
-    const stackName = ctx.req.param("stackName");
-    const result = await validateCompose(stackName, stacksDir);
-
-    if (!result) {
+    if (!versions) {
       return ctx.json({ error: "Stack not found" }, 404);
     }
 
-    return ctx.json(result);
+    return ctx.json(versions, 200);
   })
+  .get("/files/:stackName/history-content/:filename", (ctx) => {
+    const stackName = ctx.req.param("stackName");
+    const filename = ctx.req.param("filename");
+    const content = getHistoryContent(stackName, filename, stacksDir);
+
+    if (content === null) {
+      return ctx.json({ error: "Version not found" }, 404);
+    }
+
+    return ctx.json({ content }, 200);
+  })
+  .post(
+    "/files/:stackName/validate",
+    validator("json", (value) => {
+      const files = value?.files && typeof value.files === "object" ? value.files : {};
+      return { files: files as Record<string, string> };
+    }),
+    async (ctx) => {
+      const stackName = ctx.req.param("stackName");
+      const { files } = ctx.req.valid("json");
+      const overrides = Object.keys(files).length > 0 ? files : undefined;
+      const result = await validateCompose(stackName, stacksDir, overrides);
+
+      if (!result) {
+        return ctx.json({ error: "Stack not found" }, 404);
+      }
+
+      return ctx.json(result, 200);
+    },
+  )
   .post("/files/:stackName/apply", async (ctx) => {
     const stackName = ctx.req.param("stackName");
     const result = await applyCompose(stackName, stacksDir);
@@ -92,5 +79,91 @@ export const filesRoute = new Hono()
       return ctx.json({ error: result.stderr }, 500);
     }
 
-    return ctx.json({ success: true, output: result.stdout });
-  });
+    return ctx.json({ success: true, output: result.stdout }, 200);
+  })
+  .post(
+    "/files/:stackName/rename",
+    validator("json", (value) => {
+      const oldPath = typeof value?.oldPath === "string" ? value.oldPath : "";
+      const newPath = typeof value?.newPath === "string" ? value.newPath : "";
+      return { oldPath, newPath };
+    }),
+    async (ctx) => {
+      const stackName = ctx.req.param("stackName");
+      const { oldPath, newPath } = ctx.req.valid("json");
+
+      if (!oldPath || !newPath) {
+        return ctx.json({ error: "Both oldPath and newPath are required" }, 400);
+      }
+
+      try {
+        const result = renameFile(stackName, oldPath, newPath, stacksDir);
+        return ctx.json(result, 200);
+      } catch (err) {
+        if (err instanceof PathSecurityError) {
+          return ctx.json({ error: "Invalid file path" }, 403);
+        }
+
+        return ctx.json({ error: (err as Error).message }, 400);
+      }
+    },
+  )
+  // --- Wildcard routes last ---
+  .get("/files/:stackName/:path{.+}", (ctx) => {
+    const stackName = ctx.req.param("stackName");
+    const relativePath = ctx.req.param("path") ?? "";
+
+    if (!relativePath) {
+      return ctx.json({ error: "File path required" }, 400);
+    }
+
+    try {
+      const file = getFileContent(stackName, relativePath, stacksDir);
+
+      if (!file) {
+        return ctx.json({ error: "File not found" }, 404);
+      }
+
+      return ctx.json(file, 200);
+    } catch (err) {
+      if (err instanceof PathSecurityError) {
+        return ctx.json({ error: "Invalid file path" }, 403);
+      }
+
+      return ctx.json({ error: (err as Error).message }, 400);
+    }
+  })
+  .put(
+    "/files/:stackName/:path{.+}",
+    validator("json", (value) => {
+      if (typeof value?.content !== "string") {
+        return { content: "" };
+      }
+
+      return { content: value.content as string };
+    }),
+    async (ctx) => {
+      const stackName = ctx.req.param("stackName");
+      const relativePath = ctx.req.param("path") ?? "";
+
+      if (!relativePath) {
+        return ctx.json({ error: "File path required" }, 400);
+      }
+
+      const { content } = ctx.req.valid("json");
+      if (!content) {
+        return ctx.json({ error: "Request body must include 'content' string" }, 400);
+      }
+
+      try {
+        const result = writeFile(stackName, relativePath, content, stacksDir);
+        return ctx.json(result, 200);
+      } catch (err) {
+        if (err instanceof PathSecurityError) {
+          return ctx.json({ error: "Invalid file path" }, 403);
+        }
+
+        return ctx.json({ error: (err as Error).message }, 400);
+      }
+    },
+  );
