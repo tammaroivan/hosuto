@@ -1,8 +1,10 @@
 import type { Stack } from "@hosuto/shared";
+import { Link } from "@tanstack/react-router";
 import { useContainerAction } from "../hooks/useContainerAction";
 import { useStackAction } from "../hooks/useStackAction";
 import { STATUS_CONFIG, DEFAULT_STATUS } from "../lib/status";
 import { getImageUrl } from "../lib/docker";
+import { formatUptime } from "../lib/format";
 import { ActionButton } from "./ActionButton";
 
 export const StackSection = ({ stack }: { stack: Stack }) => {
@@ -67,8 +69,14 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
               key={container.id}
               className={`col-span-full grid grid-cols-subgrid items-center border-b border-border transition-colors hover:bg-surface/40 ${isStopped ? "opacity-60" : ""}`}
             >
-              <div className="whitespace-nowrap px-4 py-2.5 text-sm font-semibold text-white">
-                {container.name}
+              <div className="whitespace-nowrap px-4 py-2.5 text-sm font-semibold">
+                <Link
+                  to="/containers/$containerId"
+                  params={{ containerId: container.id }}
+                  className="text-white transition-colors hover:text-accent-cyan"
+                >
+                  {container.name}
+                </Link>
               </div>
               <div className="truncate px-4 py-2.5 font-mono text-xs">
                 <a
@@ -103,9 +111,16 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
                   <span className="text-text-muted">—</span>
                 )}
               </div>
-              <div className="px-4 py-2.5 text-xs text-text-muted">{container.uptime || "—"}</div>
+              <div className="px-4 py-2.5 text-xs text-text-muted">{container.uptime ? formatUptime(container.uptime) : "—"}</div>
               <div className="px-4 py-2.5 text-right">
                 <div className="flex justify-end gap-1.5">
+                  <Link
+                    to="/containers/$containerId"
+                    params={{ containerId: container.id }}
+                    className="rounded-md border border-border px-2.5 py-1 text-xs font-bold text-text-muted transition-colors hover:border-border-hover hover:bg-border hover:text-white"
+                  >
+                    Logs
+                  </Link>
                   {isStopped ? (
                     <ActionButton
                       label="Start"

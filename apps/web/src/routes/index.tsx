@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useHealth } from "../hooks/useHealth";
 import { useStacks } from "../hooks/useStacks";
@@ -9,7 +9,7 @@ const Dashboard = () => {
   const health = useHealth();
   const stacks = useStacks();
 
-  const { allContainers, running, stopped } = useMemo(() => {
+  const { allContainers, running, stopped } = React.useMemo(() => {
     const containers = stacks.data?.flatMap((stack) => stack.containers) || [];
     const runningContainers = containers.filter(
       (container) => container.state === "running",

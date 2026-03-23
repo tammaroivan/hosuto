@@ -29,6 +29,34 @@ export default defineConfig(
         "warn",
         { allowConstantExport: true, allowExportNames: ["Route"] },
       ],
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "react",
+              importNames: [
+                "useEffect",
+                "useState",
+                "useRef",
+                "useMemo",
+                "useCallback",
+                "useContext",
+                "useReducer",
+                "useLayoutEffect",
+                "useImperativeHandle",
+                "useDebugValue",
+                "useDeferredValue",
+                "useTransition",
+                "useId",
+                "useSyncExternalStore",
+                "useInsertionEffect",
+              ],
+              message: "Import React and use React.useEffect() instead.",
+            },
+          ],
+        },
+      ],
     },
     languageOptions: {
       globals: globals.browser,
@@ -49,7 +77,6 @@ export default defineConfig(
   prettier,
   {
     rules: {
-      "no-restricted-exports": ["error", { restrictDefaultExports: { direct: true } }],
       "func-style": ["error", "expression"],
       curly: ["error", "all"],
       "padding-line-between-statements": [

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Container, Stack } from "@hosuto/shared";
 
@@ -59,13 +59,13 @@ const updateContainerInStacks = (
 
 export const useDockerEvents = () => {
   const queryClient = useQueryClient();
-  const wsRef = useRef<WebSocket | null>(null);
-  const retriesRef = useRef(0);
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [status, setStatus] = useState<ConnectionStatus>("connecting");
-  const [lastEvent, setLastEvent] = useState<string | null>(null);
+  const wsRef = React.useRef<WebSocket | null>(null);
+  const retriesRef = React.useRef(0);
+  const reconnectTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [status, setStatus] = React.useState<ConnectionStatus>("connecting");
+  const [lastEvent, setLastEvent] = React.useState<string | null>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const connect = () => {
       if (wsRef.current) {
         wsRef.current.onclose = null;
@@ -102,6 +102,10 @@ export const useDockerEvents = () => {
             }
 
             return updateContainerInStacks(old, payload.id, stateUpdate) ?? old;
+          });
+
+          queryClient.invalidateQueries({
+            queryKey: ["container", payload.id],
           });
         } catch {
           console.error("Failed to parse WebSocket message:", event.data);
