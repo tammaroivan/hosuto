@@ -40,7 +40,7 @@ export const useEditorBuffers = (files: FileNode[] | undefined) => {
       return buffers.get(resolvedSelectedFile)!;
     }
 
-    const file = files?.find((f) => f.relativePath === resolvedSelectedFile);
+    const file = files?.find(file => file.relativePath === resolvedSelectedFile);
 
     return file?.content ?? "";
   }, [resolvedSelectedFile, buffers, files]);
@@ -59,9 +59,9 @@ export const useEditorBuffers = (files: FileNode[] | undefined) => {
       }
 
       const serverContent =
-        files?.find((f) => f.relativePath === resolvedSelectedFile)?.content ?? "";
+        files?.find(file => file.relativePath === resolvedSelectedFile)?.content ?? "";
 
-      setBuffers((prev) => {
+      setBuffers(prev => {
         const next = new Map(prev);
         if (value === serverContent) {
           next.delete(resolvedSelectedFile);
@@ -80,7 +80,7 @@ export const useEditorBuffers = (files: FileNode[] | undefined) => {
       return;
     }
 
-    setBuffers((prev) => {
+    setBuffers(prev => {
       const next = new Map(prev);
       next.delete(resolvedSelectedFile);
       return next;
@@ -93,7 +93,7 @@ export const useEditorBuffers = (files: FileNode[] | undefined) => {
         return;
       }
 
-      setBuffers((prev) => {
+      setBuffers(prev => {
         const next = new Map(prev);
         next.set(resolvedSelectedFile, content);
         return next;
@@ -103,7 +103,7 @@ export const useEditorBuffers = (files: FileNode[] | undefined) => {
   );
 
   const clearBuffer = React.useCallback((relativePath: string) => {
-    setBuffers((prev) => {
+    setBuffers(prev => {
       const next = new Map(prev);
       next.delete(relativePath);
 

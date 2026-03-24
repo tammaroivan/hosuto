@@ -1,6 +1,14 @@
 import React from "react";
 import type { FileNode } from "@hosuto/shared";
-import { FileCode, FileText, File, ChevronDown, ChevronRight, FilePlus } from "lucide-react";
+import {
+  FileCode,
+  FileText,
+  File,
+  ChevronDown,
+  ChevronRight,
+  FilePlus,
+  Folder,
+} from "lucide-react";
 
 interface FileTreeProps {
   files: FileNode[];
@@ -18,18 +26,51 @@ const FILE_ICONS: Record<string, typeof FileCode> = {
   other: File,
 };
 
+interface DirNode {
+  name: string;
+  files: FileNode[];
+  dirs: Map<string, DirNode>;
+}
+
+/**
+ * Builds a directory tree from a flat list of files using their relativePath.
+ */
+const buildDirTree = (files: FileNode[]): DirNode => {
+  const root: DirNode = { name: "", files: [], dirs: new Map() };
+
+  for (const file of files) {
+    const parts = file.relativePath.split("/");
+    let current = root;
+
+    for (let i = 0; i < parts.length - 1; i++) {
+      const dirName = parts[i];
+      if (!current.dirs.has(dirName)) {
+        current.dirs.set(dirName, { name: dirName, files: [], dirs: new Map() });
+      }
+
+      current = current.dirs.get(dirName)!;
+    }
+
+    current.files.push(file);
+  }
+
+  return root;
+};
+
 const FileItem = ({
   file,
+  label,
   isActive,
   isDirty,
-  indented,
+  depth,
   onSelect,
   onRename,
 }: {
   file: FileNode;
+  label?: string;
   isActive: boolean;
   isDirty: boolean;
-  indented?: boolean;
+  depth: number;
   onSelect: () => void;
   onRename?: (oldPath: string, newName: string) => void;
 }) => {
@@ -42,7 +83,6 @@ const FileItem = ({
     if (editing && inputRef.current) {
       inputRef.current.focus();
 
-      // Select name without extension
       const dotIdx = editValue.lastIndexOf(".");
       inputRef.current.setSelectionRange(0, dotIdx > 0 ? dotIdx : editValue.length);
     }
@@ -64,7 +104,7 @@ const FileItem = ({
   return (
     <div
       onClick={onSelect}
-      onDoubleClick={(e) => {
+      onDoubleClick={e => {
         if (!onRename) {
           return;
         }
@@ -73,9 +113,8 @@ const FileItem = ({
         setEditValue(file.name);
         setEditing(true);
       }}
-      className={`flex cursor-pointer items-center gap-2.5 rounded py-1.5 text-left text-sm transition-colors ${
-        indented ? "pl-7 pr-2.5" : "px-2.5"
-      } ${
+      style={{ paddingLeft: `${depth * 16 + 10}px` }}
+      className={`flex cursor-pointer items-center gap-2.5 rounded py-1.5 pr-2.5 text-left text-sm transition-colors ${
         isActive
           ? "bg-surface-hover text-white"
           : "text-text-muted hover:bg-surface-hover/50 hover:text-text-primary"
@@ -86,9 +125,9 @@ const FileItem = ({
         <input
           ref={inputRef}
           value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
+          onChange={e => setEditValue(e.target.value)}
           onBlur={commitRename}
-          onKeyDown={(e) => {
+          onKeyDown={e => {
             if (e.key === "Enter") {
               commitRename();
             }
@@ -97,10 +136,10 @@ const FileItem = ({
             }
           }}
           className="min-w-0 flex-1 rounded bg-bg px-1 py-0.5 font-mono text-sm text-white outline-none ring-1 ring-accent-cyan"
-          onClick={(e) => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
         />
       ) : (
-        <span className="min-w-0 truncate font-mono">{file.name}</span>
+        <span className="min-w-0 truncate font-mono">{label ?? file.name}</span>
       )}
       {isDirty && !editing && (
         <span className="ml-auto h-1 w-1 shrink-0 rounded-full bg-accent-cyan" />
@@ -109,39 +148,86 @@ const FileItem = ({
   );
 };
 
-/**
- * Groups files as: compose file → its env files nested underneath.
- * Env files without a parent compose file go into an "Other" group.
- */
-const buildGroups = (files: FileNode[], entrypoint: string) => {
-  const allCompose = files.filter((f) => f.type === "compose");
-  const envFiles = files.filter((f) => f.type === "env");
-  const otherFiles = files.filter((f) => f.type === "other");
+const DirEntry = ({
+  dir,
+  depth,
+  selectedFile,
+  dirtyFiles,
+  onSelect,
+  onRename,
+  onCreateEnv,
+  entrypoint,
+  allFiles,
+}: {
+  dir: DirNode;
+  depth: number;
+  selectedFile: string | null;
+  dirtyFiles: Set<string>;
+  onSelect: (relativePath: string) => void;
+  onRename?: (oldPath: string, newPath: string) => void;
+  onCreateEnv?: (composePath: string) => void;
+  entrypoint: string;
+  allFiles: FileNode[];
+}) => {
+  const [collapsed, setCollapsed] = React.useState(false);
+  const Icon = collapsed ? ChevronRight : ChevronDown;
 
-  // Referenced compose files: entrypoint or has includedBy
-  const referencedCompose = allCompose.filter(
-    (f) => f.path === entrypoint || f.includedBy !== null,
+  const hasEnvFile = dir.files.some(file => file.type === "env");
+
+  return (
+    <div>
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        style={{ paddingLeft: `${depth * 16 + 10}px` }}
+        className="flex w-full items-center gap-2.5 rounded py-1.5 pr-2.5 text-left text-sm text-text-muted transition-colors hover:bg-surface-hover/50 hover:text-text-primary"
+      >
+        <Folder size={14} className="shrink-0 opacity-40" />
+        <span className="min-w-0 truncate font-mono font-medium">{dir.name}</span>
+        <Icon size={10} className="ml-auto shrink-0 opacity-40" />
+      </button>
+      {!collapsed && (
+        <div className="flex flex-col gap-0.5">
+          {[...dir.dirs.values()].map(subdir => (
+            <DirEntry
+              key={subdir.name}
+              dir={subdir}
+              depth={depth + 1}
+              selectedFile={selectedFile}
+              dirtyFiles={dirtyFiles}
+              onSelect={onSelect}
+              onRename={onRename}
+              onCreateEnv={onCreateEnv}
+              entrypoint={entrypoint}
+              allFiles={allFiles}
+            />
+          ))}
+          {dir.files.map(file => (
+            <div key={file.relativePath} className="flex items-center">
+              <div className="min-w-0 flex-1">
+                <FileItem
+                  file={file}
+                  isActive={file.relativePath === selectedFile}
+                  isDirty={dirtyFiles.has(file.relativePath)}
+                  depth={depth + 1}
+                  onSelect={() => onSelect(file.relativePath)}
+                  onRename={onRename}
+                />
+              </div>
+              {onCreateEnv && file.type === "compose" && !hasEnvFile && (
+                <button
+                  onClick={() => onCreateEnv(file.relativePath)}
+                  title="Create .env file"
+                  className="mr-1 shrink-0 rounded p-1 text-text-muted opacity-0 transition-all hover:bg-surface-hover hover:text-accent-cyan [div:hover>&]:opacity-100"
+                >
+                  <FilePlus size={13} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
-  const unreferencedCompose = allCompose.filter(
-    (f) => f.path !== entrypoint && f.includedBy === null,
-  );
-
-  const envByParent = new Map<string, FileNode[]>();
-  const orphanEnvs: FileNode[] = [];
-
-  for (const env of envFiles) {
-    if (env.includedBy) {
-      const group = envByParent.get(env.includedBy) ?? [];
-      group.push(env);
-      envByParent.set(env.includedBy, group);
-    } else {
-      orphanEnvs.push(env);
-    }
-  }
-
-  const unreferenced = [...unreferencedCompose, ...orphanEnvs, ...otherFiles];
-
-  return { referencedCompose, envByParent, unreferenced };
 };
 
 export const FileTree = ({
@@ -153,99 +239,52 @@ export const FileTree = ({
   onCreateEnv,
   onRename,
 }: FileTreeProps) => {
-  const [collapsed, setCollapsed] = React.useState(false);
-  const [unreferencedCollapsed, setUnreferencedCollapsed] = React.useState(true);
-
   if (files.length === 0) {
     return <p className="px-4 py-3 text-sm text-text-muted">No files found</p>;
   }
 
-  const { referencedCompose, envByParent, unreferenced } = buildGroups(files, entrypoint);
-  const CollapseIcon = collapsed ? ChevronRight : ChevronDown;
-  const UnrefCollapseIcon = unreferencedCollapsed ? ChevronRight : ChevronDown;
+  const tree = buildDirTree(files);
+  const rootHasEnv = tree.files.some(file => file.type === "env");
 
   return (
-    <div className="flex flex-col gap-4 py-4">
-      <div className="flex flex-col gap-1">
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="mb-0.5 flex items-center justify-between px-4 text-text-muted transition-colors hover:text-text-primary"
-        >
-          <span className="text-sm font-bold uppercase tracking-[0.2em]">Files</span>
-          <CollapseIcon size={10} className={collapsed ? "opacity-40" : ""} />
-        </button>
-        {!collapsed && (
-          <div className="flex flex-col gap-0.5 px-2">
-            {referencedCompose.map((compose) => {
-              const childEnvs = envByParent.get(compose.path) ?? [];
-              return (
-                <React.Fragment key={compose.relativePath}>
-                  <div className="flex items-center">
-                    <div className="min-w-0 flex-1">
-                      <FileItem
-                        file={compose}
-                        isActive={compose.relativePath === selectedFile}
-                        isDirty={dirtyFiles.has(compose.relativePath)}
-                        onSelect={() => onSelect(compose.relativePath)}
-                        onRename={onRename}
-                      />
-                    </div>
-                    {onCreateEnv && (
-                      <button
-                        onClick={() => onCreateEnv(compose.relativePath)}
-                        title="Create .env file"
-                        className="mr-1 shrink-0 rounded p-1 text-text-muted opacity-0 transition-all hover:bg-surface-hover hover:text-accent-cyan group-hover:opacity-100 [div:hover>&]:opacity-100"
-                      >
-                        <FilePlus size={13} />
-                      </button>
-                    )}
-                  </div>
-                  {childEnvs.map((env) => (
-                    <FileItem
-                      key={env.relativePath}
-                      file={env}
-                      isActive={env.relativePath === selectedFile}
-                      isDirty={dirtyFiles.has(env.relativePath)}
-                      indented
-                      onSelect={() => onSelect(env.relativePath)}
-                      onRename={onRename}
-                    />
-                  ))}
-                </React.Fragment>
-              );
-            })}
+    <div className="flex flex-col gap-0.5 py-4 px-2">
+      {tree.files.map(file => (
+        <div key={file.relativePath} className="flex items-center">
+          <div className="min-w-0 flex-1">
+            <FileItem
+              file={file}
+              isActive={file.relativePath === selectedFile}
+              isDirty={dirtyFiles.has(file.relativePath)}
+              depth={0}
+              onSelect={() => onSelect(file.relativePath)}
+              onRename={onRename}
+            />
           </div>
-        )}
-      </div>
-
-      {unreferenced.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <button
-            onClick={() => setUnreferencedCollapsed(!unreferencedCollapsed)}
-            className="mb-0.5 flex items-center justify-between px-4 text-text-muted/50 transition-colors hover:text-text-muted"
-          >
-            <span className="text-sm font-bold uppercase tracking-[0.2em]">Unreferenced</span>
-            <div className="flex items-center gap-2">
-              <span className="text-sm tabular-nums">{unreferenced.length}</span>
-              <UnrefCollapseIcon size={10} className={unreferencedCollapsed ? "opacity-40" : ""} />
-            </div>
-          </button>
-          {!unreferencedCollapsed && (
-            <div className="flex flex-col gap-0.5 px-2 opacity-60">
-              {unreferenced.map((file) => (
-                <FileItem
-                  key={file.relativePath}
-                  file={file}
-                  isActive={file.relativePath === selectedFile}
-                  isDirty={dirtyFiles.has(file.relativePath)}
-                  onSelect={() => onSelect(file.relativePath)}
-                  onRename={onRename}
-                />
-              ))}
-            </div>
+          {onCreateEnv && file.type === "compose" && !rootHasEnv && (
+            <button
+              onClick={() => onCreateEnv(file.relativePath)}
+              title="Create .env file"
+              className="mr-1 shrink-0 rounded p-1 text-text-muted opacity-0 transition-all hover:bg-surface-hover hover:text-accent-cyan [div:hover>&]:opacity-100"
+            >
+              <FilePlus size={13} />
+            </button>
           )}
         </div>
-      )}
+      ))}
+      {[...tree.dirs.values()].map(dir => (
+        <DirEntry
+          key={dir.name}
+          dir={dir}
+          depth={0}
+          selectedFile={selectedFile}
+          dirtyFiles={dirtyFiles}
+          onSelect={onSelect}
+          onRename={onRename}
+          onCreateEnv={onCreateEnv}
+          entrypoint={entrypoint}
+          allFiles={files}
+        />
+      ))}
     </div>
   );
 };

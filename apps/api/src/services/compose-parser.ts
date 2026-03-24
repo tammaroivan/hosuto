@@ -1,6 +1,6 @@
 import { parse } from "yaml";
 import { readFileSync, existsSync } from "node:fs";
-import { resolve, dirname, relative, isAbsolute } from "node:path";
+import { resolve, dirname, join, relative, isAbsolute } from "node:path";
 import type { ComposeFile } from "@hosuto/shared";
 
 interface ParsedCompose {
@@ -115,12 +115,18 @@ export const resolveIncludes = (entrypoint: string, stacksDir: string): ComposeF
       ? relative(absoluteStacksDir, absolutePath)
       : absolutePath;
 
+    const implicitEnv = join(dirname(absolutePath), ".env");
+    const envFiles =
+      parsed.envFiles.includes(".env") || !existsSync(implicitEnv)
+        ? parsed.envFiles
+        : [".env", ...parsed.envFiles];
+
     files.push({
       path: absolutePath,
       relativePath,
       content: parsed.rawContent,
       services: parsed.services,
-      envFiles: parsed.envFiles,
+      envFiles,
       includedBy,
     });
 
@@ -131,7 +137,7 @@ export const resolveIncludes = (entrypoint: string, stacksDir: string): ComposeF
 
       // If the include entry has an env_file, attach it to the included file's envFiles
       if (include.envFile) {
-        const includedFile = files.find((f) => f.path === resolve(includePath));
+        const includedFile = files.find(file => file.path === resolve(includePath));
         if (includedFile && !includedFile.envFiles.includes(include.envFile)) {
           includedFile.envFiles.push(include.envFile);
         }

@@ -64,7 +64,7 @@ export const FileEditor = ({ content, language, onChange, onSave }: FileEditorPr
       value={content}
       language={language}
       options={EDITOR_OPTIONS}
-      onChange={(value) => onChange(value ?? "")}
+      onChange={value => onChange(value ?? "")}
       onMount={handleMount}
       loading={
         <div className="flex flex-1 items-center justify-center text-sm text-text-muted">

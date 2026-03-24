@@ -23,7 +23,7 @@ export const Sidebar = () => {
       </div>
 
       <nav className="flex-1 px-2 py-2">
-        {NAV_ITEMS.map((item) => (
+        {NAV_ITEMS.map(item => (
           <Link
             key={item.to}
             to={item.to}

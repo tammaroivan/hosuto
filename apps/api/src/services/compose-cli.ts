@@ -8,7 +8,7 @@ export interface ComposeResult {
 }
 
 export const runCompose = (entrypoint: string, args: string[]): Promise<ComposeResult> => {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     execFile(
       "docker",
       ["compose", "-f", entrypoint, ...args],

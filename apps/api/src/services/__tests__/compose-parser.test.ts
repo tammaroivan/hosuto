@@ -16,10 +16,10 @@ const writeFixture = (relativePath: string, content: string) => {
     .replace(/\n\s*$/, "\n")
     .split("\n");
   const indent = Math.min(
-    ...lines.filter((line) => line.trim()).map((line) => line.match(/^\s*/)![0].length),
+    ...lines.filter(line => line.trim()).map(line => line.match(/^\s*/)![0].length),
   );
 
-  writeFileSync(fullPath, lines.map((line) => line.slice(indent)).join("\n"));
+  writeFileSync(fullPath, lines.map(line => line.slice(indent)).join("\n"));
   return fullPath;
 };
 

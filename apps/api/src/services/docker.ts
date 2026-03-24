@@ -1,15 +1,13 @@
-import type { Container, ContainerStatus, PortMapping } from "@hosuto/shared";
+import type { ComposeFile, Container, ContainerStatus, PortMapping } from "@hosuto/shared";
 import { docker } from "./docker-client";
 
 /**
  * Lists all Docker containers.
- *
- * @returns {Promise<Container[]>} A promise that resolves to an array of containers with their metadata.
  */
 export const listContainers = async (): Promise<Container[]> => {
   const containers = await docker.listContainers({ all: true });
 
-  return containers.map((info) => {
+  return containers.map(info => {
     const name = info.Names[0]?.replace(/^\//, "") || info.Id.slice(0, 12);
 
     return {
@@ -19,6 +17,7 @@ export const listContainers = async (): Promise<Container[]> => {
       status: mapStatus(info.State, info.Status),
       state: info.State,
       stackName: info.Labels["com.docker.compose.project"] || null,
+      serviceName: info.Labels["com.docker.compose.service"] || null,
       ports: mapPorts(info.Ports),
       created: new Date(info.Created * 1000).toISOString(),
       uptime: info.State === "running" ? info.Status.replace(/\s*\(.*\)$/, "") : null,
@@ -69,6 +68,7 @@ export const getContainer = async (containerId: string): Promise<Container> => {
     status: mapStatus(info.State.Status, info.State.Status),
     state: info.State.Status,
     stackName: info.Config.Labels["com.docker.compose.project"] || null,
+    serviceName: info.Config.Labels["com.docker.compose.service"] || null,
     ports,
     created: info.Created,
     uptime: info.State.Running ? `Up since ${info.State.StartedAt}` : null,
@@ -77,23 +77,51 @@ export const getContainer = async (containerId: string): Promise<Container> => {
 
 /**
  * Matches containers to their respective stacks and updates the stack status.
- *
- * @template T - The stack object type with name, containers, and status properties.
- * @param stacks - Array of stacks to be updated with matched containers.
- * @param containers - Array of all available containers to match against stacks.
- * @returns The stacks array with containers assigned and status updated based on running container count.
  */
 export const matchContainersToStacks = <
-  T extends { name: string; containers: Container[]; status: "running" | "partial" | "stopped" },
+  T extends {
+    name: string;
+    files: ComposeFile[];
+    containers: Container[];
+    status: "running" | "partial" | "stopped";
+  },
 >(
   stacks: T[],
   containers: Container[],
 ): T[] => {
   for (const stack of stacks) {
-    stack.containers = containers.filter((ct) => ct.stackName === stack.name);
+    const realContainers = containers.filter(container => container.stackName === stack.name);
 
-    const running = stack.containers.filter((ct) => ct.state === "running").length;
-    const total = stack.containers.length;
+    const matchedServices = new Set(
+      realContainers
+        .map(container => container.serviceName)
+        .filter((service): service is string => service !== null && service !== undefined),
+    );
+
+    const expectedServices = new Set(stack.files.flatMap(file => file.services));
+
+    const placeholders: Container[] = [];
+    for (const service of expectedServices) {
+      if (!matchedServices.has(service)) {
+        placeholders.push({
+          id: `placeholder-${stack.name}-${service}`,
+          name: service,
+          image: "—",
+          status: "not_created",
+          state: "not_created",
+          stackName: stack.name,
+          serviceName: service,
+          ports: [],
+          created: "",
+          uptime: null,
+        });
+      }
+    }
+
+    stack.containers = [...realContainers, ...placeholders];
+
+    const running = realContainers.filter(container => container.state === "running").length;
+    const total = realContainers.length;
 
     if (total === 0) {
       stack.status = "stopped";
@@ -134,7 +162,7 @@ export const mapPorts = (
   const seen = new Set<string>();
 
   return ports
-    .filter((port) => {
+    .filter(port => {
       if (!port.PublicPort) {
         return false;
       }
@@ -147,7 +175,7 @@ export const mapPorts = (
       seen.add(key);
       return true;
     })
-    .map((port) => ({
+    .map(port => ({
       hostPort: port.PublicPort!,
       containerPort: port.PrivatePort,
       protocol: (port.Type as "tcp" | "udp") || "tcp",

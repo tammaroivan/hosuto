@@ -20,7 +20,7 @@ const ACTION_TO_STATE: Record<string, { status: Container["status"]; state: stri
 };
 
 const getStackStatus = (containers: Container[]): Stack["status"] => {
-  const running = containers.filter((ct) => ct.state === "running").length;
+  const running = containers.filter(container => container.state === "running").length;
 
   if (running === 0) {
     return "stopped";
@@ -36,8 +36,8 @@ const updateContainerInStacks = (
 ): Stack[] | null => {
   let changed = false;
 
-  const updated = stacks.map((stack) => {
-    const idx = stack.containers.findIndex((ct) => ct.id === containerId);
+  const updated = stacks.map(stack => {
+    const idx = stack.containers.findIndex(container => container.id === containerId);
     if (idx === -1 || stack.containers[idx].state === stateUpdate.state) {
       return stack;
     }
@@ -81,9 +81,19 @@ export const useDockerEvents = () => {
         setStatus("connected");
       };
 
-      socket.onmessage = (event) => {
+      socket.onmessage = event => {
         try {
           const message = JSON.parse(event.data);
+
+          if (message.type === "stack:action") {
+            const { payload } = message;
+            setLastEvent(
+              `${payload.stackName}: ${payload.action} ${payload.success ? "done" : "failed"}`,
+            );
+            queryClient.invalidateQueries({ queryKey: ["stacks"] });
+            return;
+          }
+
           if (message.type !== "container:status") {
             return;
           }

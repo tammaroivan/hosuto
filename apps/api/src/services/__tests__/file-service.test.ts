@@ -26,10 +26,10 @@ const writeFixture = (relativePath: string, content: string) => {
     .replace(/\n\s*$/, "\n")
     .split("\n");
   const indent = Math.min(
-    ...lines.filter((line) => line.trim()).map((line) => line.match(/^\s*/)![0].length),
+    ...lines.filter(line => line.trim()).map(line => line.match(/^\s*/)![0].length),
   );
 
-  writeFileSync(fullPath, lines.map((line) => line.slice(indent)).join("\n"));
+  writeFileSync(fullPath, lines.map(line => line.slice(indent)).join("\n"));
   return fullPath;
 };
 
@@ -65,32 +65,27 @@ describe("detectFileType", () => {
 describe("resolveAndValidatePath", () => {
   it("resolves valid paths within stacks dir", () => {
     writeFixture("mystack/docker-compose.yml", "services: {}");
-    const stackDir = join(STACKS_DIR, "mystack");
 
-    const result = resolveAndValidatePath(stackDir, "docker-compose.yml", STACKS_DIR);
+    const result = resolveAndValidatePath("mystack/docker-compose.yml", STACKS_DIR);
 
-    expect(result).toBe(join(stackDir, "docker-compose.yml"));
+    expect(result).toBe(join(STACKS_DIR, "mystack/docker-compose.yml"));
   });
 
   it("rejects path traversal with ..", () => {
-    const stackDir = join(STACKS_DIR, "mystack");
-    mkdirSync(stackDir, { recursive: true });
+    mkdirSync(join(STACKS_DIR, "mystack"), { recursive: true });
 
-    expect(() => resolveAndValidatePath(stackDir, "../../etc/passwd", STACKS_DIR)).toThrow(
-      PathSecurityError,
-    );
+    expect(() => resolveAndValidatePath("../../etc/passwd", STACKS_DIR)).toThrow(PathSecurityError);
   });
 
   it("rejects symlinks pointing outside stacks dir", () => {
     const stackDir = join(STACKS_DIR, "mystack");
     mkdirSync(stackDir, { recursive: true });
 
-    // Create a symlink pointing outside stacks dir
     const outsideFile = join(TEST_DIR, "outside.txt");
     writeFileSync(outsideFile, "secret");
     symlinkSync(outsideFile, join(stackDir, "escape.txt"));
 
-    expect(() => resolveAndValidatePath(stackDir, "escape.txt", STACKS_DIR)).toThrow(
+    expect(() => resolveAndValidatePath("mystack/escape.txt", STACKS_DIR)).toThrow(
       PathSecurityError,
     );
   });
@@ -103,13 +98,13 @@ describe("resolveAndValidatePath", () => {
     writeFileSync(targetFile, "services: {}");
     symlinkSync(targetFile, join(stackDir, "link.yml"));
 
-    const result = resolveAndValidatePath(stackDir, "link.yml", STACKS_DIR);
+    const result = resolveAndValidatePath("mystack/link.yml", STACKS_DIR);
     expect(result).toBe(join(stackDir, "link.yml"));
   });
 });
 
 describe("getStackFileTree", () => {
-  it("returns file tree with compose files", () => {
+  it("returns file tree with stacksDir-relative paths", () => {
     writeFixture(
       "mystack/docker-compose.yml",
       `
@@ -126,6 +121,7 @@ describe("getStackFileTree", () => {
     expect(tree!.files.length).toBeGreaterThanOrEqual(1);
     expect(tree!.files[0].type).toBe("compose");
     expect(tree!.files[0].name).toBe("docker-compose.yml");
+    expect(tree!.files[0].relativePath).toBe("mystack/docker-compose.yml");
   });
 
   it("includes env files referenced by compose files", () => {
@@ -143,9 +139,10 @@ describe("getStackFileTree", () => {
     const tree = getStackFileTree("withenv", STACKS_DIR);
 
     expect(tree).not.toBeNull();
-    const envFile = tree!.files.find((f) => f.type === "env");
+    const envFile = tree!.files.find(f => f.type === "env");
     expect(envFile).toBeDefined();
     expect(envFile!.name).toBe(".env");
+    expect(envFile!.relativePath).toBe("withenv/.env");
     expect(envFile!.content).toBe("PORT=3000");
   });
 
@@ -166,7 +163,7 @@ describe("getFileContent", () => {
       `,
     );
 
-    const file = getFileContent("mystack", "docker-compose.yml", STACKS_DIR);
+    const file = getFileContent("mystack", "mystack/docker-compose.yml", STACKS_DIR);
 
     expect(file).not.toBeNull();
     expect(file!.content).toContain("image: nginx");
@@ -178,12 +175,12 @@ describe("getFileContent", () => {
   it("returns null for nonexistent file", () => {
     writeFixture("mystack/docker-compose.yml", "services: {}");
 
-    const file = getFileContent("mystack", "nonexistent.yml", STACKS_DIR);
+    const file = getFileContent("mystack", "mystack/nonexistent.yml", STACKS_DIR);
     expect(file).toBeNull();
   });
 
   it("returns null for unknown stack", () => {
-    const file = getFileContent("nonexistent", "docker-compose.yml", STACKS_DIR);
+    const file = getFileContent("nonexistent", "nonexistent/docker-compose.yml", STACKS_DIR);
     expect(file).toBeNull();
   });
 
@@ -201,12 +198,11 @@ describe("writeFile", () => {
     writeFixture("mystack/docker-compose.yml", "services: {}");
 
     const newContent = "services:\n  web:\n    image: nginx:latest\n";
-    const result = writeFile("mystack", "docker-compose.yml", newContent, STACKS_DIR);
+    const result = writeFile("mystack", "mystack/docker-compose.yml", newContent, STACKS_DIR);
 
     expect(result.content).toBe(newContent);
     expect(result.type).toBe("compose");
 
-    // Verify actual file content on disk
     const onDisk = readFileSync(result.path, "utf-8");
     expect(onDisk).toBe(newContent);
   });
@@ -214,7 +210,7 @@ describe("writeFile", () => {
   it("creates new files within stack directory", () => {
     writeFixture("mystack/docker-compose.yml", "services: {}");
 
-    const result = writeFile("mystack", ".env", "PORT=8080", STACKS_DIR);
+    const result = writeFile("mystack", "mystack/.env", "PORT=8080", STACKS_DIR);
 
     expect(result.type).toBe("env");
     const onDisk = readFileSync(result.path, "utf-8");
@@ -222,7 +218,7 @@ describe("writeFile", () => {
   });
 
   it("throws for unknown stack", () => {
-    expect(() => writeFile("nonexistent", "test.yml", "content", STACKS_DIR)).toThrow(
+    expect(() => writeFile("nonexistent", "nonexistent/test.yml", "content", STACKS_DIR)).toThrow(
       "Stack not found",
     );
   });
@@ -237,9 +233,14 @@ describe("writeFile", () => {
 
   it("creates a backup on overwrite", () => {
     writeFixture("mystack/docker-compose.yml", "services: {}");
-    writeFile("mystack", "docker-compose.yml", "services:\n  web:\n    image: nginx\n", STACKS_DIR);
+    writeFile(
+      "mystack",
+      "mystack/docker-compose.yml",
+      "services:\n  web:\n    image: nginx\n",
+      STACKS_DIR,
+    );
 
-    const versions = getFileHistory("mystack", "docker-compose.yml", STACKS_DIR);
+    const versions = getFileHistory("mystack", "mystack/docker-compose.yml", STACKS_DIR);
     expect(versions).not.toBeNull();
     expect(versions!.length).toBe(1);
   });
@@ -250,10 +251,10 @@ describe("renameFile", () => {
     writeFixture("mystack/docker-compose.yml", "services: {}");
     writeFixture("mystack/.env", "PORT=3000");
 
-    const result = renameFile("mystack", ".env", ".env.local", STACKS_DIR);
+    const result = renameFile("mystack", "mystack/.env", "mystack/.env.local", STACKS_DIR);
 
-    expect(result.newPath).toBe(".env.local");
-    const content = getFileContent("mystack", ".env.local", STACKS_DIR);
+    expect(result.newPath).toBe("mystack/.env.local");
+    const content = getFileContent("mystack", "mystack/.env.local", STACKS_DIR);
     expect(content).not.toBeNull();
     expect(content!.content).toBe("PORT=3000");
   });
@@ -280,8 +281,8 @@ describe("renameFile", () => {
 
     const result = renameFile(
       "mystack",
-      "docker-compose.media.yml",
-      "docker-compose.entertainment.yml",
+      "mystack/docker-compose.media.yml",
+      "mystack/docker-compose.entertainment.yml",
       STACKS_DIR,
     );
 
@@ -293,11 +294,15 @@ describe("renameFile", () => {
     writeFixture("mystack/.env", "A=1");
     writeFixture("mystack/.env.local", "B=2");
 
-    expect(() => renameFile("mystack", ".env", ".env.local", STACKS_DIR)).toThrow("already exists");
+    expect(() => renameFile("mystack", "mystack/.env", "mystack/.env.local", STACKS_DIR)).toThrow(
+      "already exists",
+    );
   });
 
   it("throws for unknown stack", () => {
-    expect(() => renameFile("nope", "a.yml", "b.yml", STACKS_DIR)).toThrow("Stack not found");
+    expect(() => renameFile("nope", "nope/a.yml", "nope/b.yml", STACKS_DIR)).toThrow(
+      "Stack not found",
+    );
   });
 });
 
@@ -305,27 +310,26 @@ describe("getFileHistory / getHistoryContent", () => {
   it("returns empty array when no history", () => {
     writeFixture("mystack/docker-compose.yml", "services: {}");
 
-    const versions = getFileHistory("mystack", "docker-compose.yml", STACKS_DIR);
+    const versions = getFileHistory("mystack", "mystack/docker-compose.yml", STACKS_DIR);
     expect(versions).toEqual([]);
   });
 
   it("returns versions after saves", () => {
     writeFixture("mystack/docker-compose.yml", "v1");
-    writeFile("mystack", "docker-compose.yml", "v2", STACKS_DIR);
-    writeFile("mystack", "docker-compose.yml", "v3", STACKS_DIR);
+    writeFile("mystack", "mystack/docker-compose.yml", "v2", STACKS_DIR);
+    writeFile("mystack", "mystack/docker-compose.yml", "v3", STACKS_DIR);
 
-    const versions = getFileHistory("mystack", "docker-compose.yml", STACKS_DIR);
+    const versions = getFileHistory("mystack", "mystack/docker-compose.yml", STACKS_DIR);
     expect(versions).not.toBeNull();
     expect(versions!.length).toBe(2);
-    // Newest first
     expect(versions![0].timestamp >= versions![1].timestamp).toBe(true);
   });
 
   it("reads history content", () => {
     writeFixture("mystack/docker-compose.yml", "original");
-    writeFile("mystack", "docker-compose.yml", "modified", STACKS_DIR);
+    writeFile("mystack", "mystack/docker-compose.yml", "modified", STACKS_DIR);
 
-    const versions = getFileHistory("mystack", "docker-compose.yml", STACKS_DIR);
+    const versions = getFileHistory("mystack", "mystack/docker-compose.yml", STACKS_DIR);
     expect(versions!.length).toBe(1);
 
     const content = getHistoryContent("mystack", versions![0].filename, STACKS_DIR);
@@ -333,7 +337,7 @@ describe("getFileHistory / getHistoryContent", () => {
   });
 
   it("returns null for unknown stack", () => {
-    expect(getFileHistory("nope", "file.yml", STACKS_DIR)).toBeNull();
+    expect(getFileHistory("nope", "nope/file.yml", STACKS_DIR)).toBeNull();
     expect(getHistoryContent("nope", "file.bak", STACKS_DIR)).toBeNull();
   });
 });
@@ -346,8 +350,9 @@ describe("getStackFileTree - unreferenced files", () => {
     const tree = getStackFileTree("mystack", STACKS_DIR);
     expect(tree).not.toBeNull();
 
-    const orphan = tree!.files.find((f) => f.name === ".env.orphan");
+    const orphan = tree!.files.find(f => f.name === ".env.orphan");
     expect(orphan).toBeDefined();
+    expect(orphan!.relativePath).toBe("mystack/.env.orphan");
     expect(orphan!.includedBy).toBeNull();
   });
 });

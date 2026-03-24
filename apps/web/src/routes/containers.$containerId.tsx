@@ -42,9 +42,9 @@ const ContainerDetail = () => {
     return <p className="text-accent-rose">Failed to load container.</p>;
   }
 
-  const c = container.data;
-  const isStopped = c.state !== "running";
-  const status = STATUS_CONFIG[c.status] || DEFAULT_STATUS;
+  const containerData = container.data;
+  const isStopped = containerData.state !== "running";
+  const status = STATUS_CONFIG[containerData.status] || DEFAULT_STATUS;
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-hidden">
@@ -59,7 +59,7 @@ const ContainerDetail = () => {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold tracking-tight text-white">{c.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-white">{containerData.name}</h1>
             <div className="flex items-center gap-2 rounded border border-border bg-surface px-2.5 py-1">
               <span className={`h-2 w-2 rounded-full ${status.dot}`} />
               <span className={`text-xs font-bold uppercase tracking-[0.1em] ${status.text}`}>
@@ -74,20 +74,20 @@ const ContainerDetail = () => {
                 label="Start"
                 className="text-accent-green"
                 disabled={action.isPending}
-                onClick={() => action.mutate({ id: c.id, action: "start" })}
+                onClick={() => action.mutate({ id: containerData.id, action: "start" })}
               />
             ) : (
               <>
                 <ActionButton
                   label="Restart"
                   disabled={action.isPending}
-                  onClick={() => action.mutate({ id: c.id, action: "restart" })}
+                  onClick={() => action.mutate({ id: containerData.id, action: "restart" })}
                 />
                 <ActionButton
                   label="Stop"
                   className="text-accent-rose"
                   disabled={action.isPending}
-                  onClick={() => action.mutate({ id: c.id, action: "stop" })}
+                  onClick={() => action.mutate({ id: containerData.id, action: "stop" })}
                 />
               </>
             )}
@@ -98,27 +98,29 @@ const ContainerDetail = () => {
       <div className="flex shrink-0 flex-wrap items-center gap-x-8 gap-y-2 rounded border border-border bg-surface px-4 py-2">
         <InfoItem label="Image">
           <a
-            href={getImageUrl(c.image)}
+            href={getImageUrl(containerData.image)}
             target="_blank"
             rel="noopener noreferrer"
             className="font-mono text-xs text-accent-cyan transition-colors hover:text-white"
           >
-            {c.image}
+            {containerData.image}
           </a>
         </InfoItem>
-        {c.stackName && (
+        {containerData.stackName && (
           <InfoItem label="Stack">
-            <span className="text-xs font-bold text-white">{c.stackName}</span>
+            <span className="text-xs font-bold text-white">{containerData.stackName}</span>
           </InfoItem>
         )}
         <InfoItem label="Ports">
-          {c.ports.length > 0 ? (
+          {containerData.ports.length > 0 ? (
             <div className="flex gap-2 font-mono text-xs">
-              {c.ports.map((p) => (
-                <span key={`${p.hostPort}-${p.containerPort}-${p.protocol}`}>
-                  <span className="text-white">{p.hostPort}</span>
-                  <span className="text-text-muted">:{p.containerPort}</span>
-                  {p.protocol !== "tcp" && <span className="text-text-muted">/{p.protocol}</span>}
+              {containerData.ports.map(port => (
+                <span key={`${port.hostPort}-${port.containerPort}-${port.protocol}`}>
+                  <span className="text-white">{port.hostPort}</span>
+                  <span className="text-text-muted">:{port.containerPort}</span>
+                  {port.protocol !== "tcp" && (
+                    <span className="text-text-muted">/{port.protocol}</span>
+                  )}
                 </span>
               ))}
             </div>
@@ -128,7 +130,7 @@ const ContainerDetail = () => {
         </InfoItem>
         <InfoItem label="Uptime">
           <span className="text-xs font-bold text-white">
-            {c.uptime ? formatUptime(c.uptime) : "—"}
+            {containerData.uptime ? formatUptime(containerData.uptime) : "—"}
           </span>
         </InfoItem>
       </div>
@@ -141,12 +143,12 @@ const ContainerDetail = () => {
           <div className="flex items-center gap-4">
             <select
               value={tail}
-              onChange={(e) => setTail(Number(e.target.value))}
+              onChange={e => setTail(Number(e.target.value))}
               className="rounded border border-border bg-surface px-2 py-1 text-xs text-text-muted outline-none transition-colors hover:border-border-hover"
             >
-              {TAIL_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  Last {n} lines
+              {TAIL_OPTIONS.map(lines => (
+                <option key={lines} value={lines}>
+                  Last {lines} lines
                 </option>
               ))}
             </select>

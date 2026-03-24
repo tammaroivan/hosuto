@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { matchContainersToStacks, mapStatus, mapPorts } from "../docker";
-import type { Container } from "@hosuto/shared";
+import type { ComposeFile, Container } from "@hosuto/shared";
 
 interface PortInput {
   IP?: string;
@@ -17,12 +17,24 @@ const makeContainer = (overrides: Partial<Container> = {}): Container => {
     status: "running",
     state: "running",
     stackName: null,
+    serviceName: null,
     ports: [],
     created: "2026-01-01T00:00:00.000Z",
     uptime: "Up 2 hours",
     ...overrides,
   };
 };
+
+const makeStack = (
+  name: string,
+  services: string[] = [],
+  status: "running" | "partial" | "stopped" = "stopped",
+) => ({
+  name,
+  files: [{ services }] as ComposeFile[],
+  containers: [] as Container[],
+  status,
+});
 
 describe("mapStatus", () => {
   it("returns running for running state", () => {
@@ -121,15 +133,22 @@ describe("mapPorts", () => {
 
 describe("matchContainersToStacks", () => {
   it("matches containers to stacks by stackName", () => {
-    const stacks = [
-      { name: "media", containers: [] as Container[], status: "stopped" as const },
-      { name: "network", containers: [] as Container[], status: "stopped" as const },
-    ];
+    const stacks = [makeStack("media"), makeStack("network")];
 
     const containers = [
-      makeContainer({ name: "plex", stackName: "media", state: "running" }),
-      makeContainer({ name: "sonarr", stackName: "media", state: "running" }),
-      makeContainer({ name: "traefik", stackName: "network", state: "running" }),
+      makeContainer({ name: "plex", stackName: "media", serviceName: "plex", state: "running" }),
+      makeContainer({
+        name: "sonarr",
+        stackName: "media",
+        serviceName: "sonarr",
+        state: "running",
+      }),
+      makeContainer({
+        name: "traefik",
+        stackName: "network",
+        serviceName: "traefik",
+        state: "running",
+      }),
     ];
 
     matchContainersToStacks(stacks, containers);
@@ -139,11 +158,16 @@ describe("matchContainersToStacks", () => {
   });
 
   it("sets status to running when all containers are running", () => {
-    const stacks = [{ name: "media", containers: [] as Container[], status: "stopped" as const }];
+    const stacks = [makeStack("media")];
 
     const containers = [
-      makeContainer({ name: "plex", stackName: "media", state: "running" }),
-      makeContainer({ name: "sonarr", stackName: "media", state: "running" }),
+      makeContainer({ name: "plex", stackName: "media", serviceName: "plex", state: "running" }),
+      makeContainer({
+        name: "sonarr",
+        stackName: "media",
+        serviceName: "sonarr",
+        state: "running",
+      }),
     ];
 
     matchContainersToStacks(stacks, containers);
@@ -151,11 +175,16 @@ describe("matchContainersToStacks", () => {
   });
 
   it("sets status to stopped when all containers are stopped", () => {
-    const stacks = [{ name: "media", containers: [] as Container[], status: "running" as const }];
+    const stacks = [makeStack("media", [], "running")];
 
     const containers = [
-      makeContainer({ name: "plex", stackName: "media", state: "exited" }),
-      makeContainer({ name: "sonarr", stackName: "media", state: "exited" }),
+      makeContainer({ name: "plex", stackName: "media", serviceName: "plex", state: "exited" }),
+      makeContainer({
+        name: "sonarr",
+        stackName: "media",
+        serviceName: "sonarr",
+        state: "exited",
+      }),
     ];
 
     matchContainersToStacks(stacks, containers);
@@ -163,11 +192,16 @@ describe("matchContainersToStacks", () => {
   });
 
   it("sets status to partial when some containers are running", () => {
-    const stacks = [{ name: "media", containers: [] as Container[], status: "stopped" as const }];
+    const stacks = [makeStack("media")];
 
     const containers = [
-      makeContainer({ name: "plex", stackName: "media", state: "running" }),
-      makeContainer({ name: "sonarr", stackName: "media", state: "exited" }),
+      makeContainer({ name: "plex", stackName: "media", serviceName: "plex", state: "running" }),
+      makeContainer({
+        name: "sonarr",
+        stackName: "media",
+        serviceName: "sonarr",
+        state: "exited",
+      }),
     ];
 
     matchContainersToStacks(stacks, containers);
@@ -175,9 +209,16 @@ describe("matchContainersToStacks", () => {
   });
 
   it("sets status to stopped when no containers match", () => {
-    const stacks = [{ name: "media", containers: [] as Container[], status: "running" as const }];
+    const stacks = [makeStack("media", [], "running")];
 
-    const containers = [makeContainer({ name: "traefik", stackName: "network", state: "running" })];
+    const containers = [
+      makeContainer({
+        name: "traefik",
+        stackName: "network",
+        serviceName: "traefik",
+        state: "running",
+      }),
+    ];
 
     matchContainersToStacks(stacks, containers);
     expect(stacks[0].status).toBe("stopped");
@@ -185,7 +226,7 @@ describe("matchContainersToStacks", () => {
   });
 
   it("ignores containers with no stackName", () => {
-    const stacks = [{ name: "media", containers: [] as Container[], status: "stopped" as const }];
+    const stacks = [makeStack("media")];
 
     const containers = [makeContainer({ name: "orphan", stackName: null, state: "running" })];
 
@@ -194,9 +235,44 @@ describe("matchContainersToStacks", () => {
   });
 
   it("returns the stacks array", () => {
-    const stacks = [{ name: "media", containers: [] as Container[], status: "stopped" as const }];
+    const stacks = [makeStack("media")];
 
     const result = matchContainersToStacks(stacks, []);
     expect(result).toBe(stacks);
+  });
+
+  it("synthesizes placeholder containers for services without real containers", () => {
+    const stacks = [makeStack("media", ["plex", "sonarr", "radarr"])];
+
+    const containers = [
+      makeContainer({ name: "plex", stackName: "media", serviceName: "plex", state: "running" }),
+    ];
+
+    matchContainersToStacks(stacks, containers);
+
+    expect(stacks[0].containers).toHaveLength(3);
+    const placeholders = stacks[0].containers.filter(c => c.status === "not_created");
+    expect(placeholders).toHaveLength(2);
+    expect(placeholders.map(p => p.name).sort()).toEqual(["radarr", "sonarr"]);
+    expect(stacks[0].status).toBe("running");
+  });
+
+  it("does not synthesize placeholders when all services have containers", () => {
+    const stacks = [makeStack("media", ["plex", "sonarr"])];
+
+    const containers = [
+      makeContainer({ name: "plex", stackName: "media", serviceName: "plex", state: "running" }),
+      makeContainer({
+        name: "sonarr",
+        stackName: "media",
+        serviceName: "sonarr",
+        state: "running",
+      }),
+    ];
+
+    matchContainersToStacks(stacks, containers);
+
+    expect(stacks[0].containers).toHaveLength(2);
+    expect(stacks[0].containers.every(c => c.status !== "not_created")).toBe(true);
   });
 });

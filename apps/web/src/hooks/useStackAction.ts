@@ -1,9 +1,11 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 
 type StackAction = "up" | "down" | "restart" | "pull";
 
 export const useStackAction = () => {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async ({ name, action }: { name: string; action: StackAction }) => {
       const res = await api.stacks[":name"][action].$post({
@@ -11,6 +13,9 @@ export const useStackAction = () => {
       });
 
       return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["stacks"] });
     },
   });
 };

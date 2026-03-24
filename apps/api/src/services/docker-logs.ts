@@ -14,8 +14,6 @@ export interface LogLine {
  * (`[stream, 0, 0, 0, size(4 bytes)]`) followed by UTF-8 log content.
  * The function splits content by newline and returns one `LogLine` per line.
  *
- * @param buffer - Raw Docker log buffer.
- * @returns Parsed log lines with stream, timestamp, and text.
  */
 const parseDockerLogBuffer = (buffer: Buffer): LogLine[] => {
   const lines: LogLine[] = [];
@@ -34,7 +32,10 @@ const parseDockerLogBuffer = (buffer: Buffer): LogLine[] => {
       break;
     }
 
-    const raw = buffer.subarray(offset, offset + size).toString("utf8").trimEnd();
+    const raw = buffer
+      .subarray(offset, offset + size)
+      .toString("utf8")
+      .trimEnd();
     offset += size;
 
     if (!raw) {
@@ -65,14 +66,8 @@ const parseDockerLogBuffer = (buffer: Buffer): LogLine[] => {
 /**
  * Retrieves and parses logs for a Docker container.
  *
- * @param containerId - The ID of the container to read logs from.
- * @param tail - The number of most recent log lines to return.
- * @returns A promise that resolves to an array of parsed log lines.
  */
-export const getContainerLogs = async (
-  containerId: string,
-  tail: number,
-): Promise<LogLine[]> => {
+export const getContainerLogs = async (containerId: string, tail: number): Promise<LogLine[]> => {
   const container = docker.getContainer(containerId);
   const buffer = await container.logs({
     stdout: true,
@@ -88,7 +83,6 @@ export const getContainerLogs = async (
  * Streams logs from a Docker container and emits parsed log lines.
  * Dockerode returns a Node Readable when `follow: true`, despite the type saying Buffer.
  *
- * @returns A function to stop streaming and clean up.
  */
 export const streamContainerLogs = (
   containerId: string,

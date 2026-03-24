@@ -5,11 +5,11 @@ import { docker } from "../services/docker-client";
 import { getContainerLogs } from "../services/docker-logs";
 
 export const containersRoute = new Hono()
-  .get("/containers", async (ctx) => {
+  .get("/containers", async ctx => {
     const containers = await listContainers();
     return ctx.json(containers);
   })
-  .get("/containers/:id", async (ctx) => {
+  .get("/containers/:id", async ctx => {
     const containerId = ctx.req.param("id");
 
     try {
@@ -21,11 +21,11 @@ export const containersRoute = new Hono()
   })
   .get(
     "/containers/:id/logs",
-    validator("query", (value) => {
+    validator("query", value => {
       const tail = typeof value["tail"] === "string" ? value["tail"] : "200";
       return { tail };
     }),
-    async (ctx) => {
+    async ctx => {
       const containerId = ctx.req.param("id");
       const { tail } = ctx.req.valid("query");
 
@@ -37,7 +37,7 @@ export const containersRoute = new Hono()
       }
     },
   )
-  .post("/containers/:id/start", async (ctx) => {
+  .post("/containers/:id/start", async ctx => {
     const containerId = ctx.req.param("id");
 
     try {
@@ -48,7 +48,7 @@ export const containersRoute = new Hono()
       return ctx.json({ error: "Failed to start container" }, 500);
     }
   })
-  .post("/containers/:id/stop", async (ctx) => {
+  .post("/containers/:id/stop", async ctx => {
     const containerId = ctx.req.param("id");
 
     try {
@@ -59,7 +59,7 @@ export const containersRoute = new Hono()
       return ctx.json({ error: "Failed to stop container" }, 500);
     }
   })
-  .post("/containers/:id/restart", async (ctx) => {
+  .post("/containers/:id/restart", async ctx => {
     const containerId = ctx.req.param("id");
 
     try {

@@ -7,7 +7,10 @@ export const makeContainerInfo = (overrides: Record<string, unknown> = {}) => {
     Image: "nginx:latest",
     State: "running",
     Status: "Up 2 hours",
-    Labels: { "com.docker.compose.project": "mystack" },
+    Labels: {
+      "com.docker.compose.project": "mystack",
+      "com.docker.compose.service": "test-container",
+    },
     Ports: [],
     Created: 1700000000,
     ...overrides,
@@ -20,7 +23,10 @@ export const makeInspectInfo = (overrides: Record<string, unknown> = {}) => {
     Name: "/test-container",
     Config: {
       Image: "nginx:latest",
-      Labels: { "com.docker.compose.project": "mystack" },
+      Labels: {
+        "com.docker.compose.project": "mystack",
+        "com.docker.compose.service": "test-container",
+      },
     },
     State: {
       Status: "running",

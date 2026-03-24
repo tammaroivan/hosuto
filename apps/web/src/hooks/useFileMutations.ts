@@ -2,11 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";
 import { api } from "../lib/api";
 
-type SaveSuccess = InferResponseType<(typeof api.files)[":stackName"][":path{.+}"]["$put"], 200>;
-type SaveError = InferResponseType<
-  (typeof api.files)[":stackName"][":path{.+}"]["$put"],
-  400 | 403
->;
+type SaveSuccess = InferResponseType<(typeof api.files)[":stackName"]["content"]["$put"], 200>;
+type SaveError = InferResponseType<(typeof api.files)[":stackName"]["content"]["$put"], 400 | 403>;
 
 type ValidateSuccess = InferResponseType<
   (typeof api.files)[":stackName"]["validate"]["$post"],
@@ -36,9 +33,9 @@ export const useSaveFile = () => {
       relativePath: string;
       content: string;
     }) => {
-      const res = await api.files[":stackName"][":path{.+}"].$put({
-        param: { stackName, path: relativePath },
-        json: { content },
+      const res = await api.files[":stackName"].content.$put({
+        param: { stackName },
+        json: { path: relativePath, content },
       });
 
       if (!res.ok) {

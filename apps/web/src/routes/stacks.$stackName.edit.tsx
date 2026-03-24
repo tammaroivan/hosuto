@@ -2,9 +2,11 @@ import React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Box, FileTerminal } from "lucide-react";
 import { useStacks } from "../hooks/useStacks";
+import { useStackAction } from "../hooks/useStackAction";
 import { useStackFileTree, useFileHistory } from "../hooks/useStackFiles";
 import { useEditorBuffers } from "../hooks/useEditorBuffers";
 import { useEditorActions } from "../hooks/useEditorActions";
+import { ActionButton } from "../components/ActionButton";
 import { FileTree } from "../components/editor/FileTree";
 import { EditorToolbar } from "../components/editor/EditorToolbar";
 import { FileEditor } from "../components/editor/FileEditor";
@@ -24,10 +26,12 @@ const EMPTY_VERSIONS: never[] = [];
 const StackEditor = () => {
   const { stackName } = Route.useParams();
   const [activeTab, setActiveTab] = React.useState<Tab>("editor");
-  const [sidebarWidth, setSidebarWidth] = React.useState(224);
+  const [sidebarWidth, setSidebarWidth] = React.useState(280);
   const resizing = React.useRef(false);
   const stacks = useStacks();
-  const stack = stacks.data?.find((s) => s.name === stackName);
+  const stack = stacks.data?.find(stack => stack.name === stackName);
+  const stackAction = useStackAction();
+  const isStopped = stack?.status === "stopped";
   const fileTree = useStackFileTree(stackName);
 
   const {
@@ -119,19 +123,51 @@ const StackEditor = () => {
             </div>
           </div>
 
-          {actions.statusMessage && (
-            <span
-              className={`text-sm font-bold ${
-                actions.statusMessage.type === "success" ? "text-accent-green" : "text-accent-rose"
-              }`}
-            >
-              {actions.statusMessage.text}
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {actions.statusMessage && (
+              <span
+                className={`text-sm font-bold ${
+                  actions.statusMessage.type === "success"
+                    ? "text-accent-green"
+                    : "text-accent-rose"
+                }`}
+              >
+                {actions.statusMessage.text}
+              </span>
+            )}
+            {stack &&
+              (isStopped ? (
+                <ActionButton
+                  label="Up"
+                  className="text-accent-green"
+                  disabled={stackAction.isPending}
+                  onClick={() => stackAction.mutate({ name: stackName, action: "up" })}
+                />
+              ) : (
+                <>
+                  <ActionButton
+                    label="Restart"
+                    disabled={stackAction.isPending}
+                    onClick={() => stackAction.mutate({ name: stackName, action: "restart" })}
+                  />
+                  <ActionButton
+                    label="Pull"
+                    disabled={stackAction.isPending}
+                    onClick={() => stackAction.mutate({ name: stackName, action: "pull" })}
+                  />
+                  <ActionButton
+                    label="Down"
+                    className="text-accent-rose"
+                    disabled={stackAction.isPending}
+                    onClick={() => stackAction.mutate({ name: stackName, action: "down" })}
+                  />
+                </>
+              ))}
+          </div>
         </div>
 
         <nav className="flex gap-8">
-          {(["editor", "containers"] as const).map((tab) => (
+          {(["editor", "containers"] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -151,7 +187,6 @@ const StackEditor = () => {
         <div className="flex min-h-0 flex-1 flex-col p-8">
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-bg">
             <EditorToolbar
-              stackName={stackName}
               selectedFile={selectedFile}
               hasUnsavedChanges={hasUnsavedChanges}
               isSaving={actions.isSaving}
@@ -183,7 +218,7 @@ const StackEditor = () => {
               </aside>
               <div
                 className="w-1 shrink-0 cursor-col-resize bg-transparent transition-colors hover:bg-accent-cyan/30 active:bg-accent-cyan/50"
-                onMouseDown={(e) => {
+                onMouseDown={e => {
                   e.preventDefault();
                   resizing.current = true;
                   const startX = e.clientX;
@@ -215,8 +250,8 @@ const StackEditor = () => {
                     content={currentContent}
                     language={
                       FILE_TYPE_TO_LANGUAGE[
-                        fileTree.data.files.find((f) => f.relativePath === selectedFile)?.type ??
-                          "other"
+                        fileTree.data.files.find(file => file.relativePath === selectedFile)
+                          ?.type ?? "other"
                       ] ?? "plaintext"
                     }
                     onChange={updateBuffer}

@@ -50,23 +50,17 @@ export const detectFileType = (filePath: string): FileType => {
 };
 
 /**
- * Resolves a relative path within a stack directory and validates it stays
- * within the stacks directory boundary. Prevents path traversal and symlink escapes.
+ * Resolves a path relative to stacksDir and validates it stays within bounds.
+ * Prevents path traversal and symlink escapes.
  */
-export const resolveAndValidatePath = (
-  stackDir: string,
-  relativePath: string,
-  stacksDir: string,
-): string => {
+export const resolveAndValidatePath = (relativePath: string, stacksDir: string): string => {
   const absoluteStacksDir = realpathSync(resolve(stacksDir));
-  const candidate = resolve(stackDir, relativePath);
+  const candidate = resolve(absoluteStacksDir, relativePath);
 
-  // Check the candidate is within stacks dir before following symlinks
   if (!candidate.startsWith(absoluteStacksDir)) {
     throw new PathSecurityError(`Path escapes stacks directory: ${relativePath}`);
   }
 
-  // If the file exists, also check the resolved real path (follows symlinks)
   if (existsSync(candidate)) {
     const real = realpathSync(candidate);
     if (!real.startsWith(absoluteStacksDir)) {
@@ -106,7 +100,7 @@ const findStack = (
   stacksDir: string,
 ): { stackDir: string; entrypoint: string } | null => {
   const stacks = scanStacksDirectory(stacksDir);
-  const stack = stacks.find((s) => s.name === stackName);
+  const stack = stacks.find(stack => stack.name === stackName);
   if (!stack) {
     return null;
   }
@@ -119,6 +113,7 @@ const findStack = (
 
 /**
  * Returns the file tree for a stack, including all compose files and their env files.
+ * All relativePath values are relative to stacksDir.
  */
 export const getStackFileTree = (stackName: string, stacksDir: string): StackFileTree | null => {
   const stack = findStack(stackName, stacksDir);
@@ -134,7 +129,7 @@ export const getStackFileTree = (stackName: string, stacksDir: string): StackFil
   for (const cf of composeFiles) {
     files.push({
       path: cf.path,
-      relativePath: cf.relativePath,
+      relativePath: relative(absoluteStacksDir, cf.path),
       name: basename(cf.path),
       type: "compose",
       content: cf.content,
@@ -149,15 +144,14 @@ export const getStackFileTree = (stackName: string, stacksDir: string): StackFil
         continue;
       }
 
-      const envRelative = relative(absoluteStacksDir, envPath);
       // Avoid duplicates
-      if (files.some((f) => f.path === envPath)) {
+      if (files.some(file => file.path === envPath)) {
         continue;
       }
 
       files.push({
         path: envPath,
-        relativePath: envRelative,
+        relativePath: relative(absoluteStacksDir, envPath),
         name: basename(envPath),
         type: "env",
         content: readFileSync(envPath, "utf-8"),
@@ -166,7 +160,7 @@ export const getStackFileTree = (stackName: string, stacksDir: string): StackFil
     }
   }
 
-  const knownPaths = new Set(files.map((f) => f.path));
+  const knownPaths = new Set(files.map(file => file.path));
   const stackDirEntries = readdirSync(stack.stackDir);
   for (const entry of stackDirEntries) {
     const fullPath = join(stack.stackDir, entry);
@@ -175,9 +169,7 @@ export const getStackFileTree = (stackName: string, stacksDir: string): StackFil
     }
 
     const isEnv = entry.startsWith(".env");
-    const isYaml =
-      (entry.endsWith(".yml") || entry.endsWith(".yaml")) &&
-      (entry.includes("compose") || entry.includes("docker"));
+    const isYaml = entry.endsWith(".yml") || entry.endsWith(".yaml");
 
     if (!isEnv && !isYaml) {
       continue;
@@ -212,6 +204,7 @@ export const getStackFileTree = (stackName: string, stacksDir: string): StackFil
 
 /**
  * Reads a single file's content with metadata.
+ * relativePath is relative to stacksDir.
  */
 export const getFileContent = (
   stackName: string,
@@ -223,7 +216,7 @@ export const getFileContent = (
     return null;
   }
 
-  const filePath = resolveAndValidatePath(stack.stackDir, relativePath, stacksDir);
+  const filePath = resolveAndValidatePath(relativePath, stacksDir);
 
   if (!existsSync(filePath)) {
     return null;
@@ -252,7 +245,7 @@ export const getFileContent = (
 
 /**
  * Writes content to a file atomically (write to temp, then rename).
- * Creates the file if it doesn't exist, as long as the path is valid.
+ * relativePath is relative to stacksDir.
  */
 export const writeFile = (
   stackName: string,
@@ -265,7 +258,7 @@ export const writeFile = (
     throw new Error(`Stack not found: ${stackName}`);
   }
 
-  const filePath = resolveAndValidatePath(stack.stackDir, relativePath, stacksDir);
+  const filePath = resolveAndValidatePath(relativePath, stacksDir);
   const fileDir = dirname(filePath);
 
   if (!existsSync(fileDir)) {
@@ -307,8 +300,8 @@ export const writeFile = (
 };
 
 /**
- * Renames a file on disk. Reports which compose files reference the old name
- * so the user can update them manually.
+ * Renames a file on disk. Reports which compose files reference the old name.
+ * Paths are relative to stacksDir.
  */
 export const renameFile = (
   stackName: string,
@@ -321,8 +314,8 @@ export const renameFile = (
     throw new Error(`Stack not found: ${stackName}`);
   }
 
-  const oldAbsolute = resolveAndValidatePath(stack.stackDir, oldRelativePath, stacksDir);
-  const newAbsolute = resolveAndValidatePath(stack.stackDir, newRelativePath, stacksDir);
+  const oldAbsolute = resolveAndValidatePath(oldRelativePath, stacksDir);
+  const newAbsolute = resolveAndValidatePath(newRelativePath, stacksDir);
 
   if (!existsSync(oldAbsolute)) {
     throw new Error(`File not found: ${oldRelativePath}`);
@@ -335,9 +328,12 @@ export const renameFile = (
 
   // Find compose files that reference the old filename
   const composeFiles = resolveIncludes(stack.entrypoint, stacksDir);
+  const absoluteStacksDir = resolve(stacksDir);
   const affectedFiles: string[] = composeFiles
-    .filter((cf) => cf.content.includes(oldName) && cf.path !== oldAbsolute)
-    .map((cf) => cf.relativePath);
+    .filter(
+      composeFile => composeFile.content.includes(oldName) && composeFile.path !== oldAbsolute,
+    )
+    .map(composeFile => relative(absoluteStacksDir, composeFile.path));
 
   renameSync(oldAbsolute, newAbsolute);
 
@@ -350,12 +346,7 @@ export const renameFile = (
 
 /**
  * Validates a stack's compose configuration using `docker compose config`.
- * If fileOverrides is provided, copies the stack to a temp dir, applies the
- * overrides there, and validates without touching the real files.
- *
- * @param {Object} stack - The stack configuration object
- * @param {Object} [fileOverrides] - Optional file overrides to apply
- * @returns {Promise<boolean>} True if validation passes, false otherwise
+ * fileOverrides keys are relative to stacksDir.
  */
 export const validateCompose = async (
   stackName: string,
@@ -374,12 +365,16 @@ export const validateCompose = async (
 
   // Copy stack dir to temp, apply overrides, validate, clean up
   const tmpDir = mkdtempSync(join(tmpdir(), "hosuto-validate-"));
+  const absoluteStacksDir = resolve(stacksDir);
   try {
     cpSync(stack.stackDir, tmpDir, { recursive: true });
 
     const overrideEntries = Object.entries(fileOverrides);
     for (const [relativePath, content] of overrideEntries) {
-      writeFileSync(join(tmpDir, relativePath), content, "utf-8");
+      // Convert stacksDir-relative path to stackDir-relative for the temp copy
+      const absolutePath = resolve(absoluteStacksDir, relativePath);
+      const stackRelative = relative(stack.stackDir, absolutePath);
+      writeFileSync(join(tmpDir, stackRelative), content, "utf-8");
     }
 
     const tmpEntrypoint = join(tmpDir, basename(stack.entrypoint));
@@ -397,10 +392,6 @@ export const validateCompose = async (
 
 /**
  * Applies a Docker Compose stack by starting its services.
- *
- * @param stackName - The name of the stack to apply.
- * @param stacksDir - The directory containing the stack files.
- * @returns A promise that resolves to the compose result, or null if the stack is not found.
  */
 export const applyCompose = async (
   stackName: string,

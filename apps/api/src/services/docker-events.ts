@@ -32,6 +32,29 @@ export interface ContainerStatusMessage {
   };
 }
 
+export interface StackActionMessage {
+  type: "stack:action";
+  payload: {
+    stackName: string;
+    action: string;
+    success: boolean;
+    error?: string;
+  };
+}
+
+export const broadcastStackAction = (
+  stackName: string,
+  action: string,
+  success: boolean,
+  error?: string,
+): void => {
+  const message: StackActionMessage = {
+    type: "stack:action",
+    payload: { stackName, action, success, error },
+  };
+  broadcast(JSON.stringify(message));
+};
+
 export const parseDockerEventChunk = (chunk: string): ContainerStatusMessage[] => {
   const messages: ContainerStatusMessage[] = [];
   const lines = chunk.split("\n").filter(Boolean);

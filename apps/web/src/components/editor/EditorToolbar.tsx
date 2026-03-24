@@ -3,7 +3,6 @@ import { Check, X, Loader2, History, Folder } from "lucide-react";
 import type { FileValidationResult, FileVersion } from "@hosuto/shared";
 
 interface EditorToolbarProps {
-  stackName: string;
   selectedFile: string | null;
   hasUnsavedChanges: boolean;
   isSaving: boolean;
@@ -55,13 +54,7 @@ const formatVersionDate = (iso: string): string => {
   });
 };
 
-const Breadcrumb = ({
-  stackName,
-  selectedFile,
-}: {
-  stackName: string;
-  selectedFile: string | null;
-}) => {
+const Breadcrumb = ({ selectedFile }: { selectedFile: string | null }) => {
   if (!selectedFile) {
     return <span className="text-sm text-text-muted">Select a file to edit</span>;
   }
@@ -70,10 +63,9 @@ const Breadcrumb = ({
   return (
     <div className="flex items-center gap-2 font-mono text-sm text-text-muted">
       <Folder size={12} />
-      <span>{stackName}</span>
       {parts.map((part, i) => (
         <React.Fragment key={i}>
-          <span className="opacity-40">/</span>
+          {i > 0 && <span className="opacity-40">/</span>}
           <span className={i === parts.length - 1 ? "font-bold text-text-primary" : ""}>
             {part}
           </span>
@@ -84,7 +76,6 @@ const Breadcrumb = ({
 };
 
 export const EditorToolbar = ({
-  stackName,
   selectedFile,
   hasUnsavedChanges,
   isSaving,
@@ -118,7 +109,7 @@ export const EditorToolbar = ({
   return (
     <div className="flex shrink-0 items-center justify-between border-b border-border bg-surface px-4 py-2.5">
       <div className="flex items-center gap-3 overflow-hidden">
-        <Breadcrumb stackName={stackName} selectedFile={selectedFile} />
+        <Breadcrumb selectedFile={selectedFile} />
         {hasUnsavedChanges && (
           <div className="flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-accent-cyan" />
@@ -149,17 +140,19 @@ export const EditorToolbar = ({
                 Previous versions
               </div>
               <div className="max-h-48 overflow-y-auto">
-                {versions.map((v) => (
+                {versions.map(version => (
                   <button
-                    key={v.filename}
+                    key={version.filename}
                     onClick={() => {
-                      onRevert(v.filename);
+                      onRevert(version.filename);
                       setHistoryOpen(false);
                     }}
                     className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-surface-hover"
                   >
-                    <span>{formatVersionDate(v.timestamp)}</span>
-                    <span className="font-mono text-text-muted">{Math.ceil(v.size / 1024)}KB</span>
+                    <span>{formatVersionDate(version.timestamp)}</span>
+                    <span className="font-mono text-text-muted">
+                      {Math.ceil(version.size / 1024)}KB
+                    </span>
                   </button>
                 ))}
               </div>

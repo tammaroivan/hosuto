@@ -24,7 +24,7 @@ export const backupFile = (filePath: string, stackDir: string): void => {
   // Prune old backups
   const prefix = `${name}.`;
   const backups = readdirSync(historyDir)
-    .filter((f) => f.startsWith(prefix) && f.endsWith(".bak"))
+    .filter(file => file.startsWith(prefix) && file.endsWith(".bak"))
     .sort();
   const excess = backups.length - MAX_VERSIONS;
   for (let i = 0; i < excess; i++) {
@@ -42,11 +42,11 @@ export const listVersions = (stackDir: string, relativePath: string): FileVersio
 
   const prefix = `${fileName}.`;
   const entries = readdirSync(historyDir)
-    .filter((f) => f.startsWith(prefix) && f.endsWith(".bak"))
+    .filter(file => file.startsWith(prefix) && file.endsWith(".bak"))
     .sort()
     .reverse();
 
-  return entries.map((entry) => {
+  return entries.map(entry => {
     const stat = statSync(join(historyDir, entry));
     return {
       timestamp: stat.mtime.toISOString(),

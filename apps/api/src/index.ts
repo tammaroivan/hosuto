@@ -29,7 +29,7 @@ app.get(
 
           const cleanup = streamContainerLogs(
             message.containerId,
-            (lines) => {
+            lines => {
               ws.send(
                 JSON.stringify({
                   type: "log",
@@ -37,7 +37,7 @@ app.get(
                 }),
               );
             },
-            (error) => {
+            error => {
               ws.send(
                 JSON.stringify({
                   type: "log:error",
@@ -75,7 +75,7 @@ app.get(
 
 export type { AppType } from "./app";
 
-startDockerEventStream().catch((error) => {
+startDockerEventStream().catch(error => {
   console.error("Failed to start Docker event stream:", error.message);
 });
 startHeartbeat(WS_HEARTBEAT_INTERVAL);

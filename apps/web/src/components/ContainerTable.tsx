@@ -10,7 +10,7 @@ export const ContainerTable = ({ containers }: { containers: Container[] }) => {
   const containerAction = useContainerAction();
 
   return (
-    <div className="grid grid-cols-[minmax(120px,1fr)_minmax(0,2fr)_100px_120px_150px_auto] overflow-hidden rounded-xl border border-border/50">
+    <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto_auto_auto_auto] overflow-hidden rounded-xl border border-border/50">
       <div className="col-span-full grid grid-cols-subgrid items-center border-b border-border bg-surface/50 text-xs uppercase tracking-wide text-text-muted">
         <div className="px-4 py-2.5 font-medium">Name</div>
         <div className="px-4 py-2.5 font-medium">Image</div>
@@ -20,7 +20,8 @@ export const ContainerTable = ({ containers }: { containers: Container[] }) => {
         <div className="px-4 py-2.5 text-right font-medium">Actions</div>
       </div>
 
-      {containers.map((container) => {
+      {containers.map(container => {
+        const isPlaceholder = container.status === "not_created";
         const isStopped = container.state !== "running";
         const status = STATUS_CONFIG[container.status] || DEFAULT_STATUS;
 
@@ -29,24 +30,32 @@ export const ContainerTable = ({ containers }: { containers: Container[] }) => {
             key={container.id}
             className={`col-span-full grid grid-cols-subgrid items-center border-b border-border transition-colors hover:bg-surface/40 ${isStopped ? "opacity-60" : ""}`}
           >
-            <div className="whitespace-nowrap px-4 py-2.5 text-sm font-semibold">
-              <Link
-                to="/containers/$containerId"
-                params={{ containerId: container.id }}
-                className="text-white transition-colors hover:text-accent-cyan"
-              >
-                {container.name}
-              </Link>
+            <div className="min-w-0 truncate px-4 py-2.5 text-sm font-semibold">
+              {isPlaceholder ? (
+                <span className="text-text-muted">{container.name}</span>
+              ) : (
+                <Link
+                  to="/containers/$containerId"
+                  params={{ containerId: container.id }}
+                  className="text-white transition-colors hover:text-accent-cyan"
+                >
+                  {container.name}
+                </Link>
+              )}
             </div>
             <div className="truncate px-4 py-2.5 font-mono text-xs">
-              <a
-                href={getImageUrl(container.image)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-text-muted transition-colors hover:text-white"
-              >
-                {container.image}
-              </a>
+              {isPlaceholder ? (
+                <span className="text-text-muted">—</span>
+              ) : (
+                <a
+                  href={getImageUrl(container.image)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-text-muted transition-colors hover:text-white"
+                >
+                  {container.image}
+                </a>
+              )}
             </div>
             <div className="px-4 py-2.5">
               <div className="flex items-center gap-2">
@@ -58,11 +67,13 @@ export const ContainerTable = ({ containers }: { containers: Container[] }) => {
             </div>
             <div className="flex flex-wrap gap-2 px-4 py-2.5 font-mono text-xs">
               {container.ports.length > 0 ? (
-                container.ports.map((p) => (
-                  <span key={`${p.hostPort}-${p.containerPort}-${p.protocol}`}>
-                    <span className="text-white">{p.hostPort}</span>
-                    <span className="text-text-muted">:{p.containerPort}</span>
-                    {p.protocol !== "tcp" && <span className="text-text-muted">/{p.protocol}</span>}
+                container.ports.map(port => (
+                  <span key={`${port.hostPort}-${port.containerPort}-${port.protocol}`}>
+                    <span className="text-white">{port.hostPort}</span>
+                    <span className="text-text-muted">:{port.containerPort}</span>
+                    {port.protocol !== "tcp" && (
+                      <span className="text-text-muted">/{port.protocol}</span>
+                    )}
                   </span>
                 ))
               ) : (
@@ -73,39 +84,41 @@ export const ContainerTable = ({ containers }: { containers: Container[] }) => {
               {container.uptime ? formatUptime(container.uptime) : "—"}
             </div>
             <div className="px-4 py-2.5 text-right">
-              <div className="flex justify-end gap-1.5">
-                <Link
-                  to="/containers/$containerId"
-                  params={{ containerId: container.id }}
-                  className="rounded-md border border-border px-2.5 py-1 text-xs font-bold text-text-muted transition-colors hover:border-border-hover hover:bg-border hover:text-white"
-                >
-                  Logs
-                </Link>
-                {isStopped ? (
-                  <ActionButton
-                    label="Start"
-                    className="text-accent-green"
-                    disabled={containerAction.isPending}
-                    onClick={() => containerAction.mutate({ id: container.id, action: "start" })}
-                  />
-                ) : (
-                  <>
+              {!isPlaceholder && (
+                <div className="flex justify-end gap-1.5">
+                  <Link
+                    to="/containers/$containerId"
+                    params={{ containerId: container.id }}
+                    className="rounded-md border border-border px-2.5 py-1 text-xs font-bold text-text-muted transition-colors hover:border-border-hover hover:bg-border hover:text-white"
+                  >
+                    Logs
+                  </Link>
+                  {isStopped ? (
                     <ActionButton
-                      label="Restart"
+                      label="Start"
+                      className="text-accent-green"
                       disabled={containerAction.isPending}
-                      onClick={() =>
-                        containerAction.mutate({ id: container.id, action: "restart" })
-                      }
+                      onClick={() => containerAction.mutate({ id: container.id, action: "start" })}
                     />
-                    <ActionButton
-                      label="Stop"
-                      className="text-accent-rose"
-                      disabled={containerAction.isPending}
-                      onClick={() => containerAction.mutate({ id: container.id, action: "stop" })}
-                    />
-                  </>
-                )}
-              </div>
+                  ) : (
+                    <>
+                      <ActionButton
+                        label="Restart"
+                        disabled={containerAction.isPending}
+                        onClick={() =>
+                          containerAction.mutate({ id: container.id, action: "restart" })
+                        }
+                      />
+                      <ActionButton
+                        label="Stop"
+                        className="text-accent-rose"
+                        disabled={containerAction.isPending}
+                        onClick={() => containerAction.mutate({ id: container.id, action: "stop" })}
+                      />
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         );

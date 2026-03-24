@@ -41,12 +41,12 @@ export const useContainerLogs = (containerId: string, tail = 200) => {
       socket.send(JSON.stringify({ type: "subscribe:logs", containerId }));
     };
 
-    socket.onmessage = (event) => {
+    socket.onmessage = event => {
       try {
         const message = JSON.parse(event.data);
 
         if (message.type === "log" && message.payload.containerId === containerId) {
-          setStreamedLines((prev) => [...prev, ...message.payload.lines]);
+          setStreamedLines(prev => [...prev, ...message.payload.lines]);
         }
 
         // Resubscribe to logs after container restart

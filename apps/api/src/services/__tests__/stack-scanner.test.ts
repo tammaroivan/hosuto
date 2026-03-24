@@ -16,10 +16,10 @@ const writeFixture = (relativePath: string, content: string) => {
     .replace(/\n\s*$/, "\n")
     .split("\n");
   const indent = Math.min(
-    ...lines.filter((line) => line.trim()).map((line) => line.match(/^\s*/)![0].length),
+    ...lines.filter(line => line.trim()).map(line => line.match(/^\s*/)![0].length),
   );
 
-  writeFileSync(fullPath, lines.map((line) => line.slice(indent)).join("\n"));
+  writeFileSync(fullPath, lines.map(line => line.slice(indent)).join("\n"));
   return fullPath;
 };
 
@@ -54,7 +54,7 @@ describe("scanStacksDirectory", () => {
     const stacks = scanStacksDirectory(TEST_DIR);
 
     expect(stacks).toHaveLength(2);
-    expect(stacks.map((stack) => stack.name).sort()).toEqual(["gaming", "media"]);
+    expect(stacks.map(stack => stack.name).sort()).toEqual(["gaming", "media"]);
     expect(stacks[0].files).toHaveLength(1);
     expect(stacks[1].files).toHaveLength(1);
   });
@@ -105,7 +105,7 @@ describe("scanStacksDirectory", () => {
     expect(stacks).toHaveLength(1);
     expect(stacks[0].files).toHaveLength(2);
 
-    const allServices = stacks[0].files.flatMap((file) => file.services);
+    const allServices = stacks[0].files.flatMap(file => file.services);
     expect(allServices.sort()).toEqual(["plex", "portainer", "sonarr"]);
   });
 
@@ -207,7 +207,7 @@ describe("scanStacksDirectory", () => {
     writeFixture("mid/docker-compose.yml", "services:\n  c:\n    image: alpine");
 
     const stacks = scanStacksDirectory(TEST_DIR);
-    expect(stacks.map((stack) => stack.name)).toEqual(["alpha", "mid", "zeta"]);
+    expect(stacks.map(stack => stack.name)).toEqual(["alpha", "mid", "zeta"]);
   });
 
   it("handles mix of standalone and include-based stacks", () => {
@@ -243,7 +243,7 @@ describe("scanStacksDirectory", () => {
     const stacks = scanStacksDirectory(TEST_DIR);
 
     expect(stacks).toHaveLength(2);
-    const names = stacks.map((stack) => stack.name).sort();
+    const names = stacks.map(stack => stack.name).sort();
     expect(names).toContain("gaming");
   });
 
@@ -253,5 +253,36 @@ describe("scanStacksDirectory", () => {
     const stacks = scanStacksDirectory(TEST_DIR);
     expect(stacks[0].containers).toEqual([]);
     expect(stacks[0].status).toBe("stopped");
+  });
+
+  it("discovers stacks two levels deep", () => {
+    writeFixture("stacks/web/compose.yaml", "services:\n  nginx:\n    image: nginx:alpine");
+    writeFixture(
+      "stacks/database/compose.yaml",
+      "services:\n  postgres:\n    image: postgres:16-alpine",
+    );
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+
+    expect(stacks).toHaveLength(2);
+    expect(stacks.map(s => s.name).sort()).toEqual(["database", "web"]);
+  });
+
+  it("discovers stacks at mixed depths", () => {
+    writeFixture("direct/docker-compose.yml", "services:\n  a:\n    image: alpine");
+    writeFixture("nested/group/docker-compose.yml", "services:\n  b:\n    image: alpine");
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+
+    expect(stacks).toHaveLength(2);
+    expect(stacks.map(s => s.name).sort()).toEqual(["direct", "group"]);
+  });
+
+  it("does not scan beyond two levels deep", () => {
+    writeFixture("a/b/c/docker-compose.yml", "services:\n  too-deep:\n    image: alpine");
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+
+    expect(stacks).toEqual([]);
   });
 });

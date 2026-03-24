@@ -45,26 +45,29 @@ export const scanStacksDirectory = (stacksDir: string): Stack[] => {
     return [];
   }
 
-  // Collect all candidate compose files
+  // Collect all candidate compose files up to 2 levels deep
+  const MAX_DEPTH = 2;
   const candidates: { path: string; dir: string }[] = [];
 
-  const rootCompose = findComposeFile(absoluteDir);
-  if (rootCompose) {
-    candidates.push({ path: rootCompose, dir: absoluteDir });
-  }
-
-  const entries = readdirSync(absoluteDir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (!entry.isDirectory()) {
-      continue;
-    }
-
-    const subdir = join(absoluteDir, entry.name);
-    const composeFile = findComposeFile(subdir);
+  const scan = (dir: string, depth: number) => {
+    const composeFile = findComposeFile(dir);
     if (composeFile) {
-      candidates.push({ path: composeFile, dir: subdir });
+      candidates.push({ path: composeFile, dir });
     }
-  }
+
+    if (depth >= MAX_DEPTH) {
+      return;
+    }
+
+    const entries = readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        scan(join(dir, entry.name), depth + 1);
+      }
+    }
+  };
+
+  scan(absoluteDir, 0);
 
   const includedFiles = new Set<string>();
   for (const candidate of candidates) {
@@ -106,10 +109,6 @@ export const scanStacksDirectory = (stacksDir: string): Stack[] => {
  * Derives the stack name from the given compose directory and stacks directory.
  * If the directories are the same, returns the basename of the stacks directory.
  * Otherwise, returns the basename of the compose directory.
- *
- * @param composeDir - The path to the compose directory
- * @param stacksDir - The path to the stacks directory
- * @returns The derived stack name
  */
 const deriveStackName = (composeDir: string, stacksDir: string): string => {
   const resolved = resolve(composeDir);

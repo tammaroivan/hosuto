@@ -10,10 +10,8 @@ const Dashboard = () => {
   const stacks = useStacks();
 
   const { allContainers, running, stopped } = React.useMemo(() => {
-    const containers = stacks.data?.flatMap((stack) => stack.containers) || [];
-    const runningContainers = containers.filter(
-      (container) => container.state === "running",
-    ).length;
+    const containers = stacks.data?.flatMap(stack => stack.containers) || [];
+    const runningContainers = containers.filter(container => container.state === "running").length;
 
     return {
       allContainers: containers,
@@ -38,10 +36,6 @@ const Dashboard = () => {
 
       {stacks.data && (
         <>
-          {stacks.isFetching && !stacks.isLoading && (
-            <p className="text-xs text-text-muted">Refreshing...</p>
-          )}
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
             <MetricCard label="Running" value={running} variant="success" />
             <MetricCard
@@ -61,7 +55,7 @@ const Dashboard = () => {
       )}
 
       <div className="space-y-10">
-        {stacks.data?.map((stack) => (
+        {stacks.data?.map(stack => (
           <StackSection key={stack.name} stack={stack} />
         ))}
       </div>

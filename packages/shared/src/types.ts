@@ -5,6 +5,7 @@ export interface Container {
   status: ContainerStatus;
   state: string;
   stackName: string | null;
+  serviceName: string | null;
   ports: PortMapping[];
   created: string;
   uptime: string | null;
@@ -16,7 +17,8 @@ export type ContainerStatus =
   | "restarting"
   | "unhealthy"
   | "exited"
-  | "dead";
+  | "dead"
+  | "not_created";
 
 export interface PortMapping {
   hostPort: number;
