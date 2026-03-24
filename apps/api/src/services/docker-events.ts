@@ -55,6 +55,22 @@ export const broadcastStackAction = (
   broadcast(JSON.stringify(message));
 };
 
+export interface StackOutputMessage {
+  type: "stack:output";
+  payload: {
+    stackName: string;
+    line: string;
+  };
+}
+
+export const broadcastStackOutput = (stackName: string, line: string): void => {
+  const message: StackOutputMessage = {
+    type: "stack:output",
+    payload: { stackName, line },
+  };
+  broadcast(JSON.stringify(message));
+};
+
 export const parseDockerEventChunk = (chunk: string): ContainerStatusMessage[] => {
   const messages: ContainerStatusMessage[] = [];
   const lines = chunk.split("\n").filter(Boolean);

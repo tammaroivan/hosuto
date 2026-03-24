@@ -69,6 +69,15 @@ const ContainerDetail = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {!isStopped && (
+              <Link
+                to="/containers/$containerId/exec"
+                params={{ containerId: containerData.id }}
+                className="rounded-md border border-border px-2.5 py-1 text-xs font-bold text-text-muted transition-colors hover:border-border-hover hover:bg-border hover:text-white"
+              >
+                Shell
+              </Link>
+            )}
             {isStopped ? (
               <ActionButton
                 label="Start"
@@ -134,6 +143,32 @@ const ContainerDetail = () => {
           </span>
         </InfoItem>
       </div>
+
+      {containerData.mounts.length > 0 && (
+        <div className="shrink-0 overflow-hidden rounded-lg border border-border">
+          <div className="border-b border-border bg-surface px-4 py-2">
+            <span className="text-xs font-bold uppercase tracking-[0.1em] text-text-primary">
+              Mounts
+            </span>
+          </div>
+          <div className="divide-y divide-border">
+            {containerData.mounts.map(mount => (
+              <div
+                key={mount.destination}
+                className="flex items-center gap-4 px-4 py-2 font-mono text-xs"
+              >
+                <span className="shrink-0 rounded border border-border bg-surface px-1.5 py-0.5 text-text-muted">
+                  {mount.type}
+                </span>
+                <span className="min-w-0 truncate text-text-muted">{mount.source}</span>
+                <span className="shrink-0 text-text-muted">→</span>
+                <span className="min-w-0 truncate text-white">{mount.destination}</span>
+                {!mount.rw && <span className="shrink-0 text-yellow-500">RO</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-[#0d0d0f]">
         <div className="flex shrink-0 items-center justify-between border-b border-border bg-surface px-4 py-2">

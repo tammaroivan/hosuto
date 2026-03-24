@@ -1,3 +1,10 @@
+export interface ContainerMount {
+  type: "volume" | "bind" | "tmpfs";
+  source: string;
+  destination: string;
+  rw: boolean;
+}
+
 export interface Container {
   id: string;
   name: string;
@@ -7,6 +14,7 @@ export interface Container {
   stackName: string | null;
   serviceName: string | null;
   ports: PortMapping[];
+  mounts: ContainerMount[];
   created: string;
   uptime: string | null;
 }

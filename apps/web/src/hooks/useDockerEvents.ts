@@ -1,13 +1,19 @@
 import React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Container, Stack } from "@hosuto/shared";
-
-const WS_URL = import.meta.env.DEV ? "ws://localhost:3000/ws" : `ws://${window.location.host}/ws`;
+import { wsUrl } from "../lib/api";
 
 const RECONNECT_BASE_DELAY = 1000;
 const RECONNECT_MAX_DELAY = 30000;
 
 export type ConnectionStatus = "connected" | "connecting" | "disconnected";
+
+export interface DeployOutput {
+  stackName: string;
+  lines: string[];
+  complete: boolean;
+  success?: boolean;
+}
 
 const ACTION_TO_STATE: Record<string, { status: Container["status"]; state: string }> = {
   start: { status: "running", state: "running" },
@@ -64,6 +70,11 @@ export const useDockerEvents = () => {
   const reconnectTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [status, setStatus] = React.useState<ConnectionStatus>("connecting");
   const [lastEvent, setLastEvent] = React.useState<string | null>(null);
+  const [deployOutput, setDeployOutput] = React.useState<DeployOutput | null>(null);
+
+  const clearDeployOutput = React.useCallback(() => {
+    setDeployOutput(null);
+  }, []);
 
   React.useEffect(() => {
     const connect = () => {
@@ -73,7 +84,7 @@ export const useDockerEvents = () => {
       }
 
       setStatus("connecting");
-      const socket = new WebSocket(WS_URL);
+      const socket = new WebSocket(wsUrl);
       wsRef.current = socket;
 
       socket.onopen = () => {
@@ -85,11 +96,30 @@ export const useDockerEvents = () => {
         try {
           const message = JSON.parse(event.data);
 
+          if (message.type === "stack:output") {
+            const { payload } = message;
+            setDeployOutput(prev => {
+              if (prev && prev.stackName === payload.stackName) {
+                return { ...prev, lines: [...prev.lines, payload.line] };
+              }
+
+              return { stackName: payload.stackName, lines: [payload.line], complete: false };
+            });
+            return;
+          }
+
           if (message.type === "stack:action") {
             const { payload } = message;
             setLastEvent(
               `${payload.stackName}: ${payload.action} ${payload.success ? "done" : "failed"}`,
             );
+            setDeployOutput(prev => {
+              if (prev && prev.stackName === payload.stackName) {
+                return { ...prev, complete: true, success: payload.success };
+              }
+
+              return prev;
+            });
             queryClient.invalidateQueries({ queryKey: ["stacks"] });
             return;
           }
@@ -151,5 +181,5 @@ export const useDockerEvents = () => {
     };
   }, [queryClient]);
 
-  return { status, lastEvent };
+  return { status, lastEvent, deployOutput, clearDeployOutput };
 };

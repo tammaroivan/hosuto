@@ -19,6 +19,7 @@ const makeContainer = (overrides: Partial<Container> = {}): Container => {
     stackName: null,
     serviceName: null,
     ports: [],
+    mounts: [],
     created: "2026-01-01T00:00:00.000Z",
     uptime: "Up 2 hours",
     ...overrides,

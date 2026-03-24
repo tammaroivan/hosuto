@@ -93,6 +93,15 @@ export const ContainerTable = ({ containers }: { containers: Container[] }) => {
                   >
                     Logs
                   </Link>
+                  {!isStopped && (
+                    <Link
+                      to="/containers/$containerId/exec"
+                      params={{ containerId: container.id }}
+                      className="rounded-md border border-border px-2.5 py-1 text-xs font-bold text-text-muted transition-colors hover:border-border-hover hover:bg-border hover:text-white"
+                    >
+                      Shell
+                    </Link>
+                  )}
                   {isStopped ? (
                     <ActionButton
                       label="Start"

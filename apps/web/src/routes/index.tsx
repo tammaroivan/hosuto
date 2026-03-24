@@ -1,13 +1,18 @@
 import React from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { Plus, RefreshCw } from "lucide-react";
 import { useHealth } from "../hooks/useHealth";
 import { useStacks } from "../hooks/useStacks";
 import { MetricCard } from "../components/MetricCard";
 import { StackSection } from "../components/StackSection";
+import { CreateStackDialog } from "../components/CreateStackDialog";
 
 const Dashboard = () => {
+  const queryClient = useQueryClient();
   const health = useHealth();
   const stacks = useStacks();
+  const [createOpen, setCreateOpen] = React.useState(false);
 
   const { allContainers, running, stopped } = React.useMemo(() => {
     const containers = stacks.data?.flatMap(stack => stack.containers) || [];
@@ -35,8 +40,8 @@ const Dashboard = () => {
       )}
 
       {stacks.data && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="flex items-start justify-between gap-4">
+          <div className="grid flex-1 grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-4">
             <MetricCard label="Running" value={running} variant="success" />
             <MetricCard
               label="Alerts"
@@ -46,7 +51,24 @@ const Dashboard = () => {
             <MetricCard label="Containers" value={allContainers.length} variant="info" />
             <MetricCard label="Stacks" value={stacks.data.length} variant="neutral" />
           </div>
-        </>
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => setCreateOpen(true)}
+              title="Create new stack"
+              className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-2 text-sm font-bold text-text-muted transition-colors hover:border-border-hover hover:bg-border hover:text-white"
+            >
+              <Plus size={14} />
+              New Stack
+            </button>
+            <button
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["stacks"] })}
+              title="Re-scan stacks directory"
+              className="rounded-md border border-border px-2.5 py-2.5 text-text-muted transition-colors hover:border-border-hover hover:bg-border hover:text-white"
+            >
+              <RefreshCw size={14} className={stacks.isFetching ? "animate-spin" : ""} />
+            </button>
+          </div>
+        </div>
       )}
 
       {stacks.isLoading && <p className="text-text-muted">Loading stacks...</p>}
@@ -59,6 +81,8 @@ const Dashboard = () => {
           <StackSection key={stack.name} stack={stack} />
         ))}
       </div>
+
+      {createOpen && <CreateStackDialog onClose={() => setCreateOpen(false)} />}
     </div>
   );
 };

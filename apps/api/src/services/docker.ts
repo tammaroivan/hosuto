@@ -1,4 +1,10 @@
-import type { ComposeFile, Container, ContainerStatus, PortMapping } from "@hosuto/shared";
+import type {
+  ComposeFile,
+  Container,
+  ContainerMount,
+  ContainerStatus,
+  PortMapping,
+} from "@hosuto/shared";
 import { docker } from "./docker-client";
 
 /**
@@ -19,6 +25,7 @@ export const listContainers = async (): Promise<Container[]> => {
       stackName: info.Labels["com.docker.compose.project"] || null,
       serviceName: info.Labels["com.docker.compose.service"] || null,
       ports: mapPorts(info.Ports),
+      mounts: [],
       created: new Date(info.Created * 1000).toISOString(),
       uptime: info.State === "running" ? info.Status.replace(/\s*\(.*\)$/, "") : null,
     };
@@ -61,6 +68,14 @@ export const getContainer = async (containerId: string): Promise<Container> => {
     }
   }
 
+  const MOUNT_TYPES = new Set(["volume", "bind", "tmpfs"]);
+  const mounts: ContainerMount[] = (info.Mounts || []).map(mount => ({
+    type: MOUNT_TYPES.has(mount.Type) ? (mount.Type as ContainerMount["type"]) : "volume",
+    source: mount.Source || "",
+    destination: mount.Destination,
+    rw: mount.RW,
+  }));
+
   return {
     id: info.Id,
     name: info.Name.replace(/^\//, ""),
@@ -70,6 +85,7 @@ export const getContainer = async (containerId: string): Promise<Container> => {
     stackName: info.Config.Labels["com.docker.compose.project"] || null,
     serviceName: info.Config.Labels["com.docker.compose.service"] || null,
     ports,
+    mounts,
     created: info.Created,
     uptime: info.State.Running ? `Up since ${info.State.StartedAt}` : null,
   };
@@ -112,6 +128,7 @@ export const matchContainersToStacks = <
           stackName: stack.name,
           serviceName: service,
           ports: [],
+          mounts: [],
           created: "",
           uptime: null,
         });

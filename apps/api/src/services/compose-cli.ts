@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { dirname } from "node:path";
 
 export interface ComposeResult {
@@ -29,6 +29,7 @@ export const composeUp = async (
   services?: string[],
 ): Promise<ComposeResult> => {
   const args = ["up", "-d", ...(services ?? [])];
+
   return runCompose(entrypoint, args);
 };
 
@@ -45,7 +46,44 @@ export const composePull = async (
   services?: string[],
 ): Promise<ComposeResult> => {
   const args = ["pull", ...(services ?? [])];
+
   return runCompose(entrypoint, args);
+};
+
+export const runComposeStreaming = (
+  entrypoint: string,
+  args: string[],
+  onLine: (line: string) => void,
+): Promise<ComposeResult> => {
+  return new Promise(resolve => {
+    const proc = spawn("docker", ["compose", "-f", entrypoint, ...args], {
+      cwd: dirname(entrypoint),
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    const processChunk = (chunk: Buffer) => {
+      const text = chunk.toString();
+      for (const line of text.split("\n").filter(Boolean)) {
+        onLine(line);
+      }
+
+      return text;
+    };
+
+    proc.stdout.on("data", (chunk: Buffer) => {
+      stdout += processChunk(chunk);
+    });
+
+    proc.stderr.on("data", (chunk: Buffer) => {
+      stderr += processChunk(chunk);
+    });
+
+    proc.on("close", code => {
+      resolve({ success: code === 0, stdout, stderr });
+    });
+  });
 };
 
 export const composeConfig = async (entrypoint: string): Promise<ComposeResult> => {
