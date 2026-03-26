@@ -1,10 +1,11 @@
 import React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw } from "lucide-react";
+import type { StackState } from "@hosuto/shared";
 import { useHealth } from "../hooks/useHealth";
 import { useStacks } from "../hooks/useStacks";
-import { MetricCard } from "../components/MetricCard";
+import { DashboardToolbar } from "../components/DashboardToolbar";
+import { SearchBar } from "../components/SearchBar";
 import { StackSection } from "../components/StackSection";
 import { CreateStackDialog } from "../components/CreateStackDialog";
 
@@ -13,6 +14,8 @@ const Dashboard = () => {
   const health = useHealth();
   const stacks = useStacks();
   const [createOpen, setCreateOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState<StackState | null>(null);
 
   const { allContainers, running, stopped } = React.useMemo(() => {
     const containers = stacks.data?.flatMap(stack => stack.containers) || [];
@@ -25,6 +28,32 @@ const Dashboard = () => {
       stopped: expectedCount - runningCount,
     };
   }, [stacks.data]);
+
+  const filteredStacks = React.useMemo(() => {
+    if (!stacks.data) {
+      return [];
+    }
+
+    const query = search.toLowerCase().trim();
+
+    return stacks.data.filter(stack => {
+      if (statusFilter && stack.status.state !== statusFilter) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
+      if (stack.name.toLowerCase().includes(query)) {
+        return true;
+      }
+
+      return stack.containers.some(
+        container =>
+          container.name.toLowerCase().includes(query) ||
+          container.image.toLowerCase().includes(query),
+      );
+    });
+  }, [stacks.data, search, statusFilter]);
 
   return (
     <div className="space-y-6">
@@ -41,35 +70,15 @@ const Dashboard = () => {
       )}
 
       {stacks.data && (
-        <div className="flex items-start justify-between gap-4">
-          <div className="grid flex-1 grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-4">
-            <MetricCard label="Running" value={running} variant="success" />
-            <MetricCard
-              label="Alerts"
-              value={stopped}
-              variant={stopped > 0 ? "danger" : "neutral"}
-            />
-            <MetricCard label="Containers" value={allContainers.length} variant="info" />
-            <MetricCard label="Stacks" value={stacks.data.length} variant="neutral" />
-          </div>
-          <div className="flex gap-1.5">
-            <button
-              onClick={() => setCreateOpen(true)}
-              title="Create new stack"
-              className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-2 text-sm font-bold text-text-muted transition-colors hover:border-border-hover hover:bg-border hover:text-white"
-            >
-              <Plus size={14} />
-              New Stack
-            </button>
-            <button
-              onClick={() => queryClient.invalidateQueries({ queryKey: ["stacks"] })}
-              title="Re-scan stacks directory"
-              className="rounded-md border border-border px-2.5 py-2.5 text-text-muted transition-colors hover:border-border-hover hover:bg-border hover:text-white"
-            >
-              <RefreshCw size={14} className={stacks.isFetching ? "animate-spin" : ""} />
-            </button>
-          </div>
-        </div>
+        <DashboardToolbar
+          running={running}
+          stopped={stopped}
+          containerCount={allContainers.length}
+          stackCount={stacks.data.length}
+          isFetching={stacks.isFetching}
+          onCreateStack={() => setCreateOpen(true)}
+          onRefresh={() => queryClient.invalidateQueries({ queryKey: ["stacks"] })}
+        />
       )}
 
       {stacks.isLoading && <p className="text-text-muted">Loading stacks...</p>}
@@ -77,10 +86,22 @@ const Dashboard = () => {
         <p className="text-text-muted">No stacks found. Mount your compose files directory.</p>
       )}
 
+      {stacks.data && stacks.data.length > 0 && (
+        <SearchBar
+          search={search}
+          onSearchChange={setSearch}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+        />
+      )}
+
       <div className="space-y-10">
-        {stacks.data?.map(stack => (
-          <StackSection key={stack.name} stack={stack} />
+        {filteredStacks.map(stack => (
+          <StackSection key={stack.entrypoint} stack={stack} />
         ))}
+        {stacks.data && filteredStacks.length === 0 && stacks.data.length > 0 && (
+          <p className="text-sm text-text-muted">No stacks match your search.</p>
+        )}
       </div>
 
       {createOpen && <CreateStackDialog onClose={() => setCreateOpen(false)} />}
