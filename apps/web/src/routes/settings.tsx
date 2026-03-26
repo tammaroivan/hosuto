@@ -1,4 +1,3 @@
-import React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useSettings, useUpdateSettings } from "../hooks/useSettings";
 
@@ -12,20 +11,6 @@ const INTERVAL_OPTIONS = [
 const Settings = () => {
   const settings = useSettings();
   const updateSettings = useUpdateSettings();
-  const [saved, setSaved] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!saved) {
-      return;
-    }
-
-    const timer = setTimeout(() => setSaved(false), 2000);
-    return () => clearTimeout(timer);
-  }, [saved]);
-
-  const handleIntervalChange = (value: number) => {
-    updateSettings.mutate({ updateCheckInterval: value }, { onSuccess: () => setSaved(true) });
-  };
 
   if (settings.isLoading) {
     return <p className="text-text-muted">Loading settings...</p>;
@@ -49,7 +34,7 @@ const Settings = () => {
             {INTERVAL_OPTIONS.map(option => (
               <button
                 key={option.value}
-                onClick={() => handleIntervalChange(option.value)}
+                onClick={() => updateSettings.mutate({ updateCheckInterval: option.value })}
                 disabled={updateSettings.isPending}
                 className={`rounded-md border px-3 py-1.5 text-sm font-bold transition-colors ${
                   settings.data?.updateCheckInterval === option.value
@@ -61,7 +46,6 @@ const Settings = () => {
               </button>
             ))}
           </div>
-          {saved && <p className="text-sm font-bold text-accent-green">Saved</p>}
         </div>
       </section>
 

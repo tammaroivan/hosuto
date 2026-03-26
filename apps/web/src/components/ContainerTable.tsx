@@ -107,7 +107,7 @@ export const ContainerTable = ({ containers }: { containers: Container[] }) => {
                       label="Start"
                       className="text-accent-green"
                       disabled={containerAction.isPending}
-                      onClick={() => containerAction.mutate({ id: container.id, action: "start" })}
+                      onClick={() => containerAction.mutate({ id: container.id, name: container.name, action: "start" })}
                     />
                   ) : (
                     <>
@@ -115,14 +115,14 @@ export const ContainerTable = ({ containers }: { containers: Container[] }) => {
                         label="Restart"
                         disabled={containerAction.isPending}
                         onClick={() =>
-                          containerAction.mutate({ id: container.id, action: "restart" })
+                          containerAction.mutate({ id: container.id, name: container.name, action: "restart" })
                         }
                       />
                       <ActionButton
                         label="Stop"
                         className="text-accent-rose"
                         disabled={containerAction.isPending}
-                        onClick={() => containerAction.mutate({ id: container.id, action: "stop" })}
+                        onClick={() => containerAction.mutate({ id: container.id, name: container.name, action: "stop" })}
                       />
                     </>
                   )}

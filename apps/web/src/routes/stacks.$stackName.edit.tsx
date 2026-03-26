@@ -159,7 +159,11 @@ const StackEditor = () => {
                     label="Down"
                     className="text-accent-rose"
                     disabled={stackAction.isPending}
-                    onClick={() => stackAction.mutate({ name: stackName, action: "down" })}
+                    onClick={() => {
+                      if (confirm(`Stop and remove all containers in "${stackName}"?`)) {
+                        stackAction.mutate({ name: stackName, action: "down" });
+                      }
+                    }}
                   />
                 </>
               ))}

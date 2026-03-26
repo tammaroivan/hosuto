@@ -83,20 +83,20 @@ const ContainerDetail = () => {
                 label="Start"
                 className="text-accent-green"
                 disabled={action.isPending}
-                onClick={() => action.mutate({ id: containerData.id, action: "start" })}
+                onClick={() => action.mutate({ id: containerData.id, name: containerData.name, action: "start" })}
               />
             ) : (
               <>
                 <ActionButton
                   label="Restart"
                   disabled={action.isPending}
-                  onClick={() => action.mutate({ id: containerData.id, action: "restart" })}
+                  onClick={() => action.mutate({ id: containerData.id, name: containerData.name, action: "restart" })}
                 />
                 <ActionButton
                   label="Stop"
                   className="text-accent-rose"
                   disabled={action.isPending}
-                  onClick={() => action.mutate({ id: containerData.id, action: "stop" })}
+                  onClick={() => action.mutate({ id: containerData.id, name: containerData.name, action: "stop" })}
                 />
               </>
             )}

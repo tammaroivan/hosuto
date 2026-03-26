@@ -24,6 +24,14 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
     },
   });
 
+  const handleDown = () => {
+    if (!confirm(`Stop and remove all containers in "${stack.name}"?`)) {
+      return;
+    }
+
+    stackAction.mutate({ name: stack.name, action: "down" });
+  };
+
   return (
     <section>
       <div className="mb-3 flex items-center justify-between px-1">
@@ -81,6 +89,11 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
                 disabled={stackAction.isPending}
                 onClick={() => stackAction.mutate({ name: stack.name, action: "restart" })}
               />
+              <ActionButton
+                label="Pull"
+                disabled={stackAction.isPending}
+                onClick={() => stackAction.mutate({ name: stack.name, action: "pull" })}
+              />
               {stack.hasBuildDirectives && (
                 <ActionButton
                   label="Build"
@@ -92,7 +105,7 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
                 label="Down"
                 className="text-accent-rose"
                 disabled={stackAction.isPending}
-                onClick={() => stackAction.mutate({ name: stack.name, action: "down" })}
+                onClick={handleDown}
               />
             </>
           )}
