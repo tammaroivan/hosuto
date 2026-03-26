@@ -29,5 +29,8 @@
     "turbo": "^2",
     "typescript-eslint": "^8.57.1",
     "vitest": "^4.1.0"
+  },
+  "dependencies": {
+    "react-hot-toast": "^2.6.0"
   }
 }

@@ -119,17 +119,6 @@ const StackEditor = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            {actions.statusMessage && (
-              <span
-                className={`text-sm font-bold ${
-                  actions.statusMessage.type === "success"
-                    ? "text-accent-green"
-                    : "text-accent-rose"
-                }`}
-              >
-                {actions.statusMessage.text}
-              </span>
-            )}
             {stack &&
               (isStopped ? (
                 <>

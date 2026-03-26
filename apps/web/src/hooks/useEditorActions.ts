@@ -1,15 +1,8 @@
 import React from "react";
+import toast from "react-hot-toast";
 import type { FileValidationResult } from "@hosuto/shared";
 import { useSaveFile, useValidateStack, useApplyStack, useRenameFile } from "./useFileMutations";
 
-interface StatusMessage {
-  text: string;
-  type: "success" | "error";
-}
-
-/**
- * Hook for managing editor actions including save, validate, and apply operations.
- */
 export const useEditorActions = (
   stackName: string,
   selectedFile: string | null,
@@ -28,16 +21,6 @@ export const useEditorActions = (
   const [validationResult, setValidationResult] = React.useState<FileValidationResult | null>(null);
   const [validationOpen, setValidationOpen] = React.useState(false);
   const [applyConfirm, setApplyConfirm] = React.useState(false);
-  const [statusMessage, setStatusMessage] = React.useState<StatusMessage | null>(null);
-
-  React.useEffect(() => {
-    if (!statusMessage) {
-      return;
-    }
-
-    const timer = setTimeout(() => setStatusMessage(null), 3000);
-    return () => clearTimeout(timer);
-  }, [statusMessage]);
 
   const handleSave = React.useCallback(async () => {
     if (!selectedFile || !buffers.has(selectedFile)) {
@@ -51,9 +34,9 @@ export const useEditorActions = (
         content: buffers.get(selectedFile)!,
       });
       callbacks.clearBuffer(selectedFile);
-      setStatusMessage({ text: "Saved", type: "success" });
+      toast.success("Saved");
     } catch (err) {
-      setStatusMessage({ text: `Save failed: ${(err as Error).message}`, type: "error" });
+      toast.error(`Save failed: ${(err as Error).message}`);
     }
   }, [selectedFile, buffers, stackName, saveFile, callbacks]);
 
@@ -77,76 +60,60 @@ export const useEditorActions = (
       setValidationResult(result);
       setValidationOpen(true);
     } catch {
-      setStatusMessage({ text: "Validation request failed", type: "error" });
+      toast.error("Validation request failed");
     }
   }, [stackName, buffers, validateStack]);
 
   const handleApply = React.useCallback(async () => {
-    // If confirm modal is open, this is the actual apply
     if (applyConfirm) {
       try {
         await applyStack.mutateAsync({ stackName });
-        setStatusMessage({ text: "Applied successfully", type: "success" });
+        toast.success("Applied successfully");
       } catch (err) {
-        setStatusMessage({ text: `Apply failed: ${(err as Error).message}`, type: "error" });
+        toast.error(`Apply failed: ${(err as Error).message}`);
       }
 
       setApplyConfirm(false);
       return;
     }
 
-    // Save all dirty files first
     try {
       await saveAllDirty();
     } catch (err) {
-      setStatusMessage({
-        text: `Save failed before apply: ${(err as Error).message}`,
-        type: "error",
-      });
+      toast.error(`Save failed: ${(err as Error).message}`);
       return;
     }
 
-    // Validate
     try {
       const result = await validateStack.mutateAsync({ stackName });
       setValidationResult(result);
 
       if (!result.valid) {
         setValidationOpen(true);
-        setStatusMessage({ text: "Validation failed — fix errors before applying", type: "error" });
+        toast.error("Validation failed — fix errors before applying");
         return;
       }
     } catch {
-      setStatusMessage({ text: "Validation request failed", type: "error" });
+      toast.error("Validation request failed");
       return;
     }
 
-    // Show confirmation modal
     setApplyConfirm(true);
   }, [stackName, saveAllDirty, validateStack, applyStack, applyConfirm]);
 
   const handleRename = React.useCallback(
     async (oldPath: string, newPath: string) => {
       try {
-        await renameFileMutation.mutateAsync({
-          stackName,
-          oldPath,
-          newPath,
-        });
-
+        await renameFileMutation.mutateAsync({ stackName, oldPath, newPath });
         callbacks.selectFile(newPath);
-        setStatusMessage({ text: `Renamed to ${newPath}`, type: "success" });
+        toast.success(`Renamed to ${newPath}`);
       } catch (err) {
-        setStatusMessage({
-          text: `Rename failed: ${(err as Error).message}`,
-          type: "error",
-        });
+        toast.error(`Rename failed: ${(err as Error).message}`);
       }
     },
     [stackName, renameFileMutation, callbacks],
   );
 
-  // Keyboard shortcut: Ctrl/Cmd+S
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
@@ -169,7 +136,6 @@ export const useEditorActions = (
     setValidationOpen,
     applyConfirm,
     setApplyConfirm,
-    statusMessage,
     isSaving: saveFile.isPending,
     isValidating: validateStack.isPending,
     isApplying: applyStack.isPending,

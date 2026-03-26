@@ -1,6 +1,7 @@
 import type { Stack } from "@hosuto/shared";
 import { Link } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 import { useStackAction } from "../hooks/useStackAction";
 import { api } from "../lib/api";
 import { ActionButton } from "./ActionButton";
@@ -16,8 +17,10 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
       const res = await api.stacks[":name"]["check-updates"].$post({
         param: { name: stack.name },
       });
-
       return res.json();
+    },
+    onSuccess: () => {
+      toast.success(`Checking updates for ${stack.name}...`);
     },
   });
 
