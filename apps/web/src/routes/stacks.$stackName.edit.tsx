@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Box, FileTerminal } from "lucide-react";
 import { useStacks } from "../hooks/useStacks";
 import { useStackAction } from "../hooks/useStackAction";
-import { useStackFileTree, useFileHistory } from "../hooks/useStackFiles";
+import { useStackFileTree } from "../hooks/useStackFiles";
 import { useEditorBuffers } from "../hooks/useEditorBuffers";
 import { useEditorActions } from "../hooks/useEditorActions";
 import { ActionButton } from "../components/ActionButton";
@@ -20,8 +20,6 @@ const FILE_TYPE_TO_LANGUAGE: Record<string, string> = {
   env: "ini",
   other: "plaintext",
 };
-
-const EMPTY_VERSIONS: never[] = [];
 
 const StackEditor = () => {
   const { stackName } = Route.useParams();
@@ -43,17 +41,13 @@ const StackEditor = () => {
     hasUnsavedChanges,
     updateBuffer,
     discardChanges,
-    loadContentIntoBuffer,
     clearBuffer,
     clearAllBuffers,
   } = useEditorBuffers(fileTree.data?.files);
 
-  const history = useFileHistory(stackName, selectedFile);
-
   const actions = useEditorActions(stackName, selectedFile, buffers, {
     clearBuffer,
     clearAllBuffers,
-    loadContentIntoBuffer,
     selectFile,
   });
 
@@ -193,11 +187,9 @@ const StackEditor = () => {
               isValidating={actions.isValidating}
               isApplying={actions.isApplying}
               validationResult={actions.validationResult}
-              versions={history.data ?? EMPTY_VERSIONS}
               onSave={actions.handleSave}
               onValidate={actions.handleValidate}
               onApply={actions.handleApply}
-              onRevert={actions.handleRevert}
               onDiscardChanges={discardChanges}
             />
 
@@ -212,7 +204,6 @@ const StackEditor = () => {
                   selectedFile={selectedFile}
                   dirtyFiles={dirtyFiles}
                   onSelect={selectFile}
-                  onCreateEnv={actions.handleCreateEnv}
                   onRename={actions.handleRename}
                 />
               </aside>

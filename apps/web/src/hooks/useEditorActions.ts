@@ -1,6 +1,5 @@
 import React from "react";
 import type { FileValidationResult } from "@hosuto/shared";
-import { api } from "../lib/api";
 import { useSaveFile, useValidateStack, useApplyStack, useRenameFile } from "./useFileMutations";
 
 interface StatusMessage {
@@ -18,7 +17,6 @@ export const useEditorActions = (
   callbacks: {
     clearBuffer: (path: string) => void;
     clearAllBuffers: () => void;
-    loadContentIntoBuffer: (content: string) => void;
     selectFile: (path: string) => void;
   },
 ) => {
@@ -40,15 +38,6 @@ export const useEditorActions = (
     const timer = setTimeout(() => setStatusMessage(null), 3000);
     return () => clearTimeout(timer);
   }, [statusMessage]);
-
-  React.useEffect(() => {
-    if (!applyConfirm) {
-      return;
-    }
-
-    const timer = setTimeout(() => setApplyConfirm(false), 4000);
-    return () => clearTimeout(timer);
-  }, [applyConfirm]);
 
   const handleSave = React.useCallback(async () => {
     if (!selectedFile || !buffers.has(selectedFile)) {
@@ -93,7 +82,7 @@ export const useEditorActions = (
   }, [stackName, buffers, validateStack]);
 
   const handleApply = React.useCallback(async () => {
-    // Second click (confirm) — skip save/validate, just apply
+    // If confirm modal is open, this is the actual apply
     if (applyConfirm) {
       try {
         await applyStack.mutateAsync({ stackName });
@@ -106,6 +95,7 @@ export const useEditorActions = (
       return;
     }
 
+    // Save all dirty files first
     try {
       await saveAllDirty();
     } catch (err) {
@@ -116,6 +106,7 @@ export const useEditorActions = (
       return;
     }
 
+    // Validate
     try {
       const result = await validateStack.mutateAsync({ stackName });
       setValidationResult(result);
@@ -130,94 +121,21 @@ export const useEditorActions = (
       return;
     }
 
+    // Show confirmation modal
     setApplyConfirm(true);
   }, [stackName, saveAllDirty, validateStack, applyStack, applyConfirm]);
-
-  const handleRevert = React.useCallback(
-    async (filename: string) => {
-      try {
-        const res = await api.files[":stackName"]["history-content"][":filename"].$get({
-          param: { stackName, filename },
-        });
-
-        if (!res.ok) {
-          setStatusMessage({ text: "Failed to load version", type: "error" });
-          return;
-        }
-
-        const data = await res.json();
-        callbacks.loadContentIntoBuffer(data.content);
-        setStatusMessage({
-          text: "Previous version loaded — review and Save to keep",
-          type: "success",
-        });
-      } catch {
-        setStatusMessage({ text: "Failed to load version", type: "error" });
-      }
-    },
-    [stackName, callbacks],
-  );
-
-  const handleCreateEnv = React.useCallback(
-    async (composeRelativePath: string) => {
-      // docker-compose.gaming.yml → .env.gaming
-      // docker-compose.yml → .env
-      // terminus/compose.yml → terminus/.env
-      const fileName = composeRelativePath.split("/").pop() ?? "";
-      const dir = composeRelativePath.includes("/")
-        ? composeRelativePath.substring(0, composeRelativePath.lastIndexOf("/")) + "/"
-        : "";
-
-      let envName = ".env";
-      const match = fileName.match(/^docker-compose\.(.+)\.ya?ml$/);
-      if (match) {
-        envName = `.env.${match[1]}`;
-      }
-
-      const envPath = `${dir}${envName}`;
-      const content = `# ${envName} — environment variables\n`;
-
-      try {
-        await saveFile.mutateAsync({
-          stackName,
-          relativePath: envPath,
-          content,
-        });
-        callbacks.loadContentIntoBuffer(content);
-        callbacks.selectFile(envPath);
-        setStatusMessage({
-          text: `Created ${envPath} — add env_file: ${envName} to your compose file`,
-          type: "success",
-        });
-      } catch (err) {
-        setStatusMessage({
-          text: `Failed to create ${envName}: ${(err as Error).message}`,
-          type: "error",
-        });
-      }
-    },
-    [stackName, saveFile, callbacks],
-  );
 
   const handleRename = React.useCallback(
     async (oldPath: string, newPath: string) => {
       try {
-        const result = await renameFileMutation.mutateAsync({
+        await renameFileMutation.mutateAsync({
           stackName,
           oldPath,
           newPath,
         });
 
         callbacks.selectFile(newPath);
-
-        const count = result.affectedFiles.length;
-        setStatusMessage({
-          text:
-            count > 0
-              ? `Renamed to ${newPath} — update references in ${result.affectedFiles.join(", ")}`
-              : `Renamed to ${newPath}`,
-          type: "success",
-        });
+        setStatusMessage({ text: `Renamed to ${newPath}`, type: "success" });
       } catch (err) {
         setStatusMessage({
           text: `Rename failed: ${(err as Error).message}`,
@@ -245,8 +163,6 @@ export const useEditorActions = (
     handleSave,
     handleValidate,
     handleApply,
-    handleRevert,
-    handleCreateEnv,
     handleRename,
     validationResult,
     validationOpen,

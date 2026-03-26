@@ -87,21 +87,6 @@ export const useEditorBuffers = (files: FileNode[] | undefined) => {
     });
   }, [resolvedSelectedFile]);
 
-  const loadContentIntoBuffer = React.useCallback(
-    (content: string) => {
-      if (!resolvedSelectedFile) {
-        return;
-      }
-
-      setBuffers(prev => {
-        const next = new Map(prev);
-        next.set(resolvedSelectedFile, content);
-        return next;
-      });
-    },
-    [resolvedSelectedFile],
-  );
-
   const clearBuffer = React.useCallback((relativePath: string) => {
     setBuffers(prev => {
       const next = new Map(prev);
@@ -124,7 +109,6 @@ export const useEditorBuffers = (files: FileNode[] | undefined) => {
     hasUnsavedChanges,
     updateBuffer,
     discardChanges,
-    loadContentIntoBuffer,
     clearBuffer,
     clearAllBuffers,
   };

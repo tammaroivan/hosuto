@@ -8,8 +8,6 @@ import {
   getFileContent,
   writeFile,
   renameFile,
-  getFileHistory,
-  getHistoryContent,
   PathSecurityError,
 } from "../file-service";
 
@@ -231,19 +229,6 @@ describe("writeFile", () => {
     );
   });
 
-  it("creates a backup on overwrite", () => {
-    writeFixture("mystack/docker-compose.yml", "services: {}");
-    writeFile(
-      "mystack",
-      "mystack/docker-compose.yml",
-      "services:\n  web:\n    image: nginx\n",
-      STACKS_DIR,
-    );
-
-    const versions = getFileHistory("mystack", "mystack/docker-compose.yml", STACKS_DIR);
-    expect(versions).not.toBeNull();
-    expect(versions!.length).toBe(1);
-  });
 });
 
 describe("renameFile", () => {
@@ -257,36 +242,6 @@ describe("renameFile", () => {
     const content = getFileContent("mystack", "mystack/.env.local", STACKS_DIR);
     expect(content).not.toBeNull();
     expect(content!.content).toBe("PORT=3000");
-  });
-
-  it("reports affected files that reference old name", () => {
-    writeFixture(
-      "mystack/docker-compose.yml",
-      `
-        include:
-          - docker-compose.media.yml
-        services:
-          web:
-            image: nginx
-      `,
-    );
-    writeFixture(
-      "mystack/docker-compose.media.yml",
-      `
-        services:
-          plex:
-            image: plex
-      `,
-    );
-
-    const result = renameFile(
-      "mystack",
-      "mystack/docker-compose.media.yml",
-      "mystack/docker-compose.entertainment.yml",
-      STACKS_DIR,
-    );
-
-    expect(result.affectedFiles).toContain("mystack/docker-compose.yml");
   });
 
   it("throws when target already exists", () => {
@@ -303,42 +258,6 @@ describe("renameFile", () => {
     expect(() => renameFile("nope", "nope/a.yml", "nope/b.yml", STACKS_DIR)).toThrow(
       "Stack not found",
     );
-  });
-});
-
-describe("getFileHistory / getHistoryContent", () => {
-  it("returns empty array when no history", () => {
-    writeFixture("mystack/docker-compose.yml", "services: {}");
-
-    const versions = getFileHistory("mystack", "mystack/docker-compose.yml", STACKS_DIR);
-    expect(versions).toEqual([]);
-  });
-
-  it("returns versions after saves", () => {
-    writeFixture("mystack/docker-compose.yml", "v1");
-    writeFile("mystack", "mystack/docker-compose.yml", "v2", STACKS_DIR);
-    writeFile("mystack", "mystack/docker-compose.yml", "v3", STACKS_DIR);
-
-    const versions = getFileHistory("mystack", "mystack/docker-compose.yml", STACKS_DIR);
-    expect(versions).not.toBeNull();
-    expect(versions!.length).toBe(2);
-    expect(versions![0].timestamp >= versions![1].timestamp).toBe(true);
-  });
-
-  it("reads history content", () => {
-    writeFixture("mystack/docker-compose.yml", "original");
-    writeFile("mystack", "mystack/docker-compose.yml", "modified", STACKS_DIR);
-
-    const versions = getFileHistory("mystack", "mystack/docker-compose.yml", STACKS_DIR);
-    expect(versions!.length).toBe(1);
-
-    const content = getHistoryContent("mystack", versions![0].filename, STACKS_DIR);
-    expect(content).toBe("original");
-  });
-
-  it("returns null for unknown stack", () => {
-    expect(getFileHistory("nope", "nope/file.yml", STACKS_DIR)).toBeNull();
-    expect(getHistoryContent("nope", "file.bak", STACKS_DIR)).toBeNull();
   });
 });
 

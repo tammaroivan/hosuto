@@ -16,12 +16,10 @@ import { tmpdir } from "node:os";
 import { scanStacksDirectory } from "./stack-scanner";
 import { resolveIncludes } from "./compose-parser";
 import { composeConfig, composeUp } from "./compose-cli";
-import { backupFile, listVersions, readVersion } from "./file-history";
 import type {
   FileNode,
   FileContent,
   FileType,
-  FileVersion,
   RenameResult,
   StackFileTree,
   FileValidationResult,
@@ -265,10 +263,6 @@ export const writeFile = (
     throw new Error(`Directory does not exist: ${fileDir}`);
   }
 
-  if (existsSync(filePath)) {
-    backupFile(filePath, stack.stackDir);
-  }
-
   // Atomic write: temp file in same directory, then rename
   const tmpPath = join(fileDir, `.hosuto-tmp-${Date.now()}`);
   try {
@@ -324,23 +318,11 @@ export const renameFile = (
     throw new Error(`File already exists: ${newRelativePath}`);
   }
 
-  const oldName = basename(oldRelativePath);
-
-  // Find compose files that reference the old filename
-  const composeFiles = resolveIncludes(stack.entrypoint, stacksDir);
-  const absoluteStacksDir = resolve(stacksDir);
-  const affectedFiles: string[] = composeFiles
-    .filter(
-      composeFile => composeFile.content.includes(oldName) && composeFile.path !== oldAbsolute,
-    )
-    .map(composeFile => relative(absoluteStacksDir, composeFile.path));
-
   renameSync(oldAbsolute, newAbsolute);
 
   return {
     oldPath: oldRelativePath,
     newPath: newRelativePath,
-    affectedFiles,
   };
 };
 
@@ -405,28 +387,3 @@ export const applyCompose = async (
   return composeUp(stack.entrypoint);
 };
 
-export const getFileHistory = (
-  stackName: string,
-  relativePath: string,
-  stacksDir: string,
-): FileVersion[] | null => {
-  const stack = findStack(stackName, stacksDir);
-  if (!stack) {
-    return null;
-  }
-
-  return listVersions(stack.stackDir, relativePath);
-};
-
-export const getHistoryContent = (
-  stackName: string,
-  historyFilename: string,
-  stacksDir: string,
-): string | null => {
-  const stack = findStack(stackName, stacksDir);
-  if (!stack) {
-    return null;
-  }
-
-  return readVersion(stack.stackDir, historyFilename);
-};

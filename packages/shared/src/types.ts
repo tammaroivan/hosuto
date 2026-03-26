@@ -112,14 +112,7 @@ export interface FileValidationResult {
   errors: string;
 }
 
-export interface FileVersion {
-  timestamp: string;
-  filename: string;
-  size: number;
-}
-
 export interface RenameResult {
   oldPath: string;
   newPath: string;
-  affectedFiles: string[];
 }

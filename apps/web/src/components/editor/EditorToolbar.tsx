@@ -1,6 +1,6 @@
 import React from "react";
-import { Check, X, Loader2, History, Folder } from "lucide-react";
-import type { FileValidationResult, FileVersion } from "@hosuto/shared";
+import { Check, X, Loader2, Folder } from "lucide-react";
+import type { FileValidationResult } from "@hosuto/shared";
 
 interface EditorToolbarProps {
   selectedFile: string | null;
@@ -9,11 +9,9 @@ interface EditorToolbarProps {
   isValidating: boolean;
   isApplying: boolean;
   validationResult: FileValidationResult | null;
-  versions: FileVersion[];
   onSave: () => void;
   onValidate: () => void;
   onApply: () => void;
-  onRevert: (filename: string) => void;
   onDiscardChanges: () => void;
 }
 
@@ -43,17 +41,6 @@ const ToolbarButton = ({
   </button>
 );
 
-const formatVersionDate = (iso: string): string => {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-};
-
 const Breadcrumb = ({ selectedFile }: { selectedFile: string | null }) => {
   if (!selectedFile) {
     return <span className="text-sm text-text-muted">Select a file to edit</span>;
@@ -82,30 +69,11 @@ export const EditorToolbar = ({
   isValidating,
   isApplying,
   validationResult,
-  versions,
   onSave,
   onValidate,
   onApply,
-  onRevert,
   onDiscardChanges,
 }: EditorToolbarProps) => {
-  const [historyOpen, setHistoryOpen] = React.useState(false);
-  const dropdownRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (!historyOpen) {
-      return;
-    }
-
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setHistoryOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [historyOpen]);
-
   return (
     <div className="flex shrink-0 items-center justify-between border-b border-border bg-surface px-4 py-2.5">
       <div className="flex items-center gap-3 overflow-hidden">
@@ -124,41 +92,6 @@ export const EditorToolbar = ({
         {hasUnsavedChanges && (
           <ToolbarButton label="Discard" onClick={onDiscardChanges} className="text-text-muted" />
         )}
-
-        <div className="relative" ref={dropdownRef}>
-          <ToolbarButton
-            label="Revert"
-            onClick={() => setHistoryOpen(!historyOpen)}
-            disabled={!selectedFile || versions.length === 0}
-            className="text-text-muted"
-          >
-            <History size={12} />
-          </ToolbarButton>
-          {historyOpen && versions.length > 0 && (
-            <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-md border border-border bg-surface">
-              <div className="px-3 py-2 text-sm font-bold uppercase tracking-[0.2em] text-text-muted">
-                Previous versions
-              </div>
-              <div className="max-h-48 overflow-y-auto">
-                {versions.map(version => (
-                  <button
-                    key={version.filename}
-                    onClick={() => {
-                      onRevert(version.filename);
-                      setHistoryOpen(false);
-                    }}
-                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-surface-hover"
-                  >
-                    <span>{formatVersionDate(version.timestamp)}</span>
-                    <span className="font-mono text-text-muted">
-                      {Math.ceil(version.size / 1024)}KB
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
 
         <div className="mx-1 h-4 w-px bg-border" />
 

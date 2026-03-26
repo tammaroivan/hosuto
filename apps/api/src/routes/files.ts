@@ -7,8 +7,6 @@ import {
   writeFile,
   validateCompose,
   applyCompose,
-  getFileHistory,
-  getHistoryContent,
   renameFile,
   PathSecurityError,
 } from "../services/file-service";
@@ -84,39 +82,6 @@ export const filesRoute = new Hono()
       }
     },
   )
-  .get(
-    "/files/:stackName/history",
-    validator("query", (value, ctx) => {
-      if (typeof value?.path !== "string" || !value.path) {
-        return ctx.json({ error: "File path required" }, 400);
-      }
-
-      return { path: value.path };
-    }),
-    ctx => {
-      const stackName = ctx.req.param("stackName");
-      const { path: relativePath } = ctx.req.valid("query");
-
-      const versions = getFileHistory(stackName, relativePath, stacksDir);
-
-      if (!versions) {
-        return ctx.json({ error: "Stack not found" }, 404);
-      }
-
-      return ctx.json(versions, 200);
-    },
-  )
-  .get("/files/:stackName/history-content/:filename", ctx => {
-    const stackName = ctx.req.param("stackName");
-    const filename = ctx.req.param("filename");
-    const content = getHistoryContent(stackName, filename, stacksDir);
-
-    if (content === null) {
-      return ctx.json({ error: "Version not found" }, 404);
-    }
-
-    return ctx.json({ content }, 200);
-  })
   .post(
     "/files/:stackName/validate",
     validator("json", value => {
