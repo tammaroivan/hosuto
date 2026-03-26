@@ -16,6 +16,15 @@ if (isDev) {
   app.use("*", cors());
 }
 
+app.onError((err, ctx) => {
+  console.error("Unhandled error:", err);
+  return ctx.json({ error: isDev ? err.message : "Internal server error" }, 500);
+});
+
+app.notFound(ctx => {
+  return ctx.json({ error: "Not found" }, 404);
+});
+
 const routes = app
   .route("/api", healthRoute)
   .route("/api", stacksRoute)
