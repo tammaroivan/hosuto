@@ -92,13 +92,18 @@ export const scanStacksDirectory = (stacksDir: string): Stack[] => {
     const parsed = parseComposeFile(candidate.path);
 
     const name = parsed.name || deriveStackName(candidate.dir, absoluteDir);
+    const hasBuildDirectives = files.some(file => {
+      const fileParsed = file.path === absolutePath ? parsed : parseComposeFile(file.path);
+      return fileParsed.hasBuild;
+    });
 
     stacks.push({
       name,
       entrypoint: absolutePath,
       files,
-      containers: [], // TODO: Implement containers list
+      containers: [],
       status: { state: "stopped", running: 0, expected: 0 },
+      hasBuildDirectives,
     });
   }
 

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 
-type StackAction = "up" | "down" | "restart" | "pull";
+type StackAction = "up" | "down" | "restart" | "pull" | "build" | "build-up";
 
 export const useStackAction = () => {
   const queryClient = useQueryClient();

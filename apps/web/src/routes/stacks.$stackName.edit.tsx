@@ -132,12 +132,21 @@ const StackEditor = () => {
             )}
             {stack &&
               (isStopped ? (
-                <ActionButton
-                  label="Up"
-                  className="text-accent-green"
-                  disabled={stackAction.isPending}
-                  onClick={() => stackAction.mutate({ name: stackName, action: "up" })}
-                />
+                <>
+                  <ActionButton
+                    label="Up"
+                    className="text-accent-green"
+                    disabled={stackAction.isPending}
+                    onClick={() => stackAction.mutate({ name: stackName, action: "up" })}
+                  />
+                  {stack.hasBuildDirectives && (
+                    <ActionButton
+                      label="Build & Up"
+                      disabled={stackAction.isPending}
+                      onClick={() => stackAction.mutate({ name: stackName, action: "build-up" })}
+                    />
+                  )}
+                </>
               ) : (
                 <>
                   <ActionButton
@@ -150,6 +159,13 @@ const StackEditor = () => {
                     disabled={stackAction.isPending}
                     onClick={() => stackAction.mutate({ name: stackName, action: "pull" })}
                   />
+                  {stack.hasBuildDirectives && (
+                    <ActionButton
+                      label="Build"
+                      disabled={stackAction.isPending}
+                      onClick={() => stackAction.mutate({ name: stackName, action: "build-up" })}
+                    />
+                  )}
                   <ActionButton
                     label="Down"
                     className="text-accent-rose"

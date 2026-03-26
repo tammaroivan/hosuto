@@ -24,12 +24,21 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
             Edit
           </Link>
           {isStopped ? (
-            <ActionButton
-              label="Up"
-              className="text-accent-green"
-              disabled={stackAction.isPending}
-              onClick={() => stackAction.mutate({ name: stack.name, action: "up" })}
-            />
+            <>
+              <ActionButton
+                label="Up"
+                className="text-accent-green"
+                disabled={stackAction.isPending}
+                onClick={() => stackAction.mutate({ name: stack.name, action: "up" })}
+              />
+              {stack.hasBuildDirectives && (
+                <ActionButton
+                  label="Build & Up"
+                  disabled={stackAction.isPending}
+                  onClick={() => stackAction.mutate({ name: stack.name, action: "build-up" })}
+                />
+              )}
+            </>
           ) : (
             <>
               <ActionButton
@@ -42,6 +51,13 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
                 disabled={stackAction.isPending}
                 onClick={() => stackAction.mutate({ name: stack.name, action: "pull" })}
               />
+              {stack.hasBuildDirectives && (
+                <ActionButton
+                  label="Build"
+                  disabled={stackAction.isPending}
+                  onClick={() => stackAction.mutate({ name: stack.name, action: "build-up" })}
+                />
+              )}
               <ActionButton
                 label="Down"
                 className="text-accent-rose"

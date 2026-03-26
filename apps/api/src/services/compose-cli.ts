@@ -86,6 +86,19 @@ export const runComposeStreaming = (
   });
 };
 
+export const composeBuild = async (
+  entrypoint: string,
+  services?: string[],
+): Promise<ComposeResult> => {
+  const args = ["build", ...(services ?? [])];
+
+  return runCompose(entrypoint, args);
+};
+
+export const composeBuildUp = async (entrypoint: string): Promise<ComposeResult> => {
+  return runCompose(entrypoint, ["up", "-d", "--build"]);
+};
+
 export const composeConfig = async (entrypoint: string): Promise<ComposeResult> => {
   return runCompose(entrypoint, ["config"]);
 };

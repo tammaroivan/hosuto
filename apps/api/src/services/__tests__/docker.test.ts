@@ -35,6 +35,7 @@ const makeStack = (
   files: [{ services }] as ComposeFile[],
   containers: [] as Container[],
   status: { state, running: 0, expected: services.length } as StackStatus,
+  hasBuildDirectives: false,
 });
 
 describe("mapStatus", () => {

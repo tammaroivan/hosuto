@@ -8,6 +8,7 @@ interface ParsedCompose {
   services: string[];
   includes: IncludeEntry[];
   envFiles: string[];
+  hasBuild: boolean;
   rawContent: string;
 }
 
@@ -31,11 +32,11 @@ export const parseComposeFile = (filePath: string): ParsedCompose => {
   try {
     doc = parse(content);
   } catch {
-    return { services: [], includes: [], envFiles: [], rawContent: content };
+    return { services: [], includes: [], envFiles: [], hasBuild: false, rawContent: content };
   }
 
   if (!doc || typeof doc !== "object") {
-    return { services: [], includes: [], envFiles: [], rawContent: content };
+    return { services: [], includes: [], envFiles: [], hasBuild: false, rawContent: content };
   }
 
   const services = doc.services ? Object.keys(doc.services) : [];
@@ -77,7 +78,13 @@ export const parseComposeFile = (filePath: string): ParsedCompose => {
     }
   }
 
-  return { name, services, includes, envFiles: [...new Set(envFiles)], rawContent: content };
+  const hasBuild = doc.services
+    ? Object.values(doc.services as Record<string, Record<string, unknown>>).some(
+        service => service && typeof service === "object" && "build" in service,
+      )
+    : false;
+
+  return { name, services, includes, envFiles: [...new Set(envFiles)], hasBuild, rawContent: content };
 };
 
 /**

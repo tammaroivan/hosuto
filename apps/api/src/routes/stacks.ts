@@ -93,4 +93,6 @@ export const stacksRoute = new Hono()
   .post("/stacks/:name/up", ctx => runStackAction(ctx, "up", ["up", "-d"]))
   .post("/stacks/:name/down", ctx => runStackAction(ctx, "down", ["down"]))
   .post("/stacks/:name/restart", ctx => runStackAction(ctx, "restart", ["restart"]))
-  .post("/stacks/:name/pull", ctx => runStackAction(ctx, "pull", ["pull"]));
+  .post("/stacks/:name/pull", ctx => runStackAction(ctx, "pull", ["pull"]))
+  .post("/stacks/:name/build", ctx => runStackAction(ctx, "build", ["build"]))
+  .post("/stacks/:name/build-up", ctx => runStackAction(ctx, "build-up", ["up", "-d", "--build"]));

@@ -48,6 +48,7 @@ export interface Stack {
   files: ComposeFile[];
   containers: Container[];
   status: StackStatus;
+  hasBuildDirectives: boolean;
 }
 
 export interface ComposeFile {
