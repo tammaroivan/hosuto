@@ -46,6 +46,7 @@ export const makeStack = (overrides: Partial<Stack> = {}): Stack => {
     containers: [],
     status: { state: "stopped", running: 0, expected: 0 },
     hasBuildDirectives: false,
+    updates: null,
     ...overrides,
   };
 };

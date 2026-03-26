@@ -120,6 +120,15 @@ export const useDockerEvents = () => {
             return;
           }
 
+          if (message.type === "stack:updates") {
+            const { payload } = message;
+            queryClient.invalidateQueries({
+              queryKey: ["updates", payload.stackName],
+            });
+
+            return;
+          }
+
           if (message.type !== "container:status") {
             return;
           }

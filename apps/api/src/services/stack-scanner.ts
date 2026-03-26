@@ -104,6 +104,7 @@ export const scanStacksDirectory = (stacksDir: string): Stack[] => {
       containers: [],
       status: { state: "stopped", running: 0, expected: 0 },
       hasBuildDirectives,
+      updates: null,
     });
   }
 

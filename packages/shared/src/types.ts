@@ -49,6 +49,7 @@ export interface Stack {
   containers: Container[];
   status: StackStatus;
   hasBuildDirectives: boolean;
+  updates: StackUpdateStatus | null;
 }
 
 export interface ComposeFile {
@@ -60,14 +61,20 @@ export interface ComposeFile {
   includedBy: string | null;
 }
 
-export interface UpdateInfo {
-  containerId: string;
-  containerName: string;
+export interface UpdateCheckResult {
   image: string;
-  currentDigest: string;
-  remoteDigest: string;
-  lastChecked: string;
+  service: string;
+  currentDigest: string | null;
+  remoteDigest: string | null;
   updateAvailable: boolean;
+  error?: string;
+}
+
+export interface StackUpdateStatus {
+  stackName: string;
+  results: UpdateCheckResult[];
+  lastChecked: string;
+  hasUpdates: boolean;
 }
 
 export interface NotificationPref {

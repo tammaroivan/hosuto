@@ -36,6 +36,7 @@ const makeStack = (
   containers: [] as Container[],
   status: { state, running: 0, expected: services.length } as StackStatus,
   hasBuildDirectives: false,
+  updates: null,
 });
 
 describe("mapStatus", () => {

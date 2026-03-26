@@ -71,6 +71,15 @@ export const broadcastStackOutput = (stackName: string, line: string): void => {
   broadcast(JSON.stringify(message));
 };
 
+export const broadcastStackUpdates = (stackName: string, status: { hasUpdates: boolean }): void => {
+  broadcast(
+    JSON.stringify({
+      type: "stack:updates",
+      payload: { stackName, hasUpdates: status.hasUpdates },
+    }),
+  );
+};
+
 export const parseDockerEventChunk = (chunk: string): ContainerStatusMessage[] => {
   const messages: ContainerStatusMessage[] = [];
   const lines = chunk.split("\n").filter(Boolean);

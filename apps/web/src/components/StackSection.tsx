@@ -1,12 +1,25 @@
 import type { Stack } from "@hosuto/shared";
 import { Link } from "@tanstack/react-router";
+import { useMutation } from "@tanstack/react-query";
 import { useStackAction } from "../hooks/useStackAction";
+import { api } from "../lib/api";
 import { ActionButton } from "./ActionButton";
 import { ContainerTable } from "./ContainerTable";
 
 export const StackSection = ({ stack }: { stack: Stack }) => {
   const stackAction = useStackAction();
   const isStopped = stack.status.state === "stopped";
+  const hasUpdates = stack.updates?.hasUpdates ?? false;
+
+  const triggerCheck = useMutation({
+    mutationFn: async () => {
+      const res = await api.stacks[":name"]["check-updates"].$post({
+        param: { name: stack.name },
+      });
+
+      return res.json();
+    },
+  });
 
   return (
     <section>
@@ -14,6 +27,11 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
         <div className="flex items-baseline gap-3">
           <h2 className="text-sm font-bold uppercase tracking-wider text-white">{stack.name}</h2>
           <span className="font-mono text-xs text-text-muted">{stack.entrypoint}</span>
+          {hasUpdates && (
+            <span className="rounded-full bg-accent-cyan/10 px-2 py-0.5 text-xs font-bold text-accent-cyan">
+              Updates available
+            </span>
+          )}
         </div>
         <div className="flex gap-1.5">
           <Link
@@ -41,15 +59,24 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
             </>
           ) : (
             <>
+              {hasUpdates ? (
+                <ActionButton
+                  label="Update"
+                  className="text-accent-cyan"
+                  disabled={stackAction.isPending}
+                  onClick={() => stackAction.mutate({ name: stack.name, action: "update" })}
+                />
+              ) : (
+                <ActionButton
+                  label={triggerCheck.isPending ? "Checking..." : "Check Updates"}
+                  disabled={stackAction.isPending || triggerCheck.isPending}
+                  onClick={() => triggerCheck.mutate()}
+                />
+              )}
               <ActionButton
                 label="Restart"
                 disabled={stackAction.isPending}
                 onClick={() => stackAction.mutate({ name: stack.name, action: "restart" })}
-              />
-              <ActionButton
-                label="Pull"
-                disabled={stackAction.isPending}
-                onClick={() => stackAction.mutate({ name: stack.name, action: "pull" })}
               />
               {stack.hasBuildDirectives && (
                 <ActionButton

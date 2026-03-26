@@ -1,10 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, Settings } from "lucide-react";
 import { useHealth } from "../hooks/useHealth";
 import { useDockerEvents, type ConnectionStatus } from "../hooks/useDockerEvents";
 import { DeployOutput } from "./DeployOutput";
 
-const NAV_ITEMS = [{ to: "/", label: "Dashboard", icon: LayoutDashboard }] as const;
+const NAV_ITEMS = [
+  { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/settings", label: "Settings", icon: Settings },
+];
 
 const STATUS_LABEL: Record<ConnectionStatus, { color: string; text: string }> = {
   connected: { color: "bg-accent-green", text: "Live" },

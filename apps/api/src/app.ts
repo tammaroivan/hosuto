@@ -5,6 +5,7 @@ import { healthRoute } from "./routes/health";
 import { stacksRoute } from "./routes/stacks";
 import { containersRoute } from "./routes/containers";
 import { filesRoute } from "./routes/files";
+import { settingsRoute } from "./routes/settings";
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -29,7 +30,8 @@ const routes = app
   .route("/api", healthRoute)
   .route("/api", stacksRoute)
   .route("/api", containersRoute)
-  .route("/api", filesRoute);
+  .route("/api", filesRoute)
+  .route("/api", settingsRoute);
 
 export type AppType = typeof routes;
 

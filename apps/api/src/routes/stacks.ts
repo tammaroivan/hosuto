@@ -4,39 +4,39 @@ import { validator } from "hono/validator";
 import { scanStacksDirectory } from "../services/stack-scanner";
 import { listContainers, matchContainersToStacks } from "../services/docker";
 import { runComposeStreaming } from "../services/compose-cli";
-import { broadcastStackAction, broadcastStackOutput } from "../services/docker-events";
+import {
+  broadcastStackAction,
+  broadcastStackOutput,
+  broadcastStackUpdates,
+} from "../services/docker-events";
 import { createStack, StackValidationError, StackConflictError } from "../services/stack-service";
+import { checkStackUpdates } from "../services/update-checker";
+import { getCachedUpdates, setCachedUpdates } from "../services/update-scheduler";
 import { DEFAULT_STACKS_DIR } from "@hosuto/shared";
 
 const stacksDir = process.env.STACKS_DIR || DEFAULT_STACKS_DIR;
 
-/**
- * Finds the entrypoint path for a stack by its name.
- */
-const findStackEntrypoint = (name: string): string | null => {
-  const stacks = scanStacksDirectory(stacksDir);
-  const stack = stacks.find(stack => stack.name === name);
+const findStack = (name: string | undefined) => {
+  if (!name) {
+    return null;
+  }
 
-  return stack?.entrypoint ?? null;
+  const stacks = scanStacksDirectory(stacksDir);
+  return stacks.find(stack => stack.name === name) ?? null;
 };
 
-/**
- * Runs a compose command in the background with streaming output.
- * Returns 202 immediately, broadcasts output lines and completion via WebSocket.
- */
 const runStackAction = (ctx: Context, action: string, composeArgs: string[]) => {
   const name = ctx.req.param("name");
-
   if (!name) {
     return ctx.json({ error: "Stack name is required" }, 400);
   }
 
-  const entrypoint = findStackEntrypoint(name);
-  if (!entrypoint) {
+  const stack = findStack(name);
+  if (!stack) {
     return ctx.json({ error: "Stack not found" }, 404);
   }
 
-  runComposeStreaming(entrypoint, composeArgs, line => broadcastStackOutput(name, line))
+  runComposeStreaming(stack.entrypoint, composeArgs, line => broadcastStackOutput(name, line))
     .then(result => {
       broadcastStackAction(name, action, result.success, result.stderr || undefined);
     })
@@ -55,6 +55,10 @@ export const stacksRoute = new Hono()
     try {
       const containers = await listContainers();
       const matched = matchContainersToStacks(stacks, containers);
+
+      for (const stack of matched) {
+        stack.updates = getCachedUpdates(stack.name);
+      }
 
       return ctx.json(matched);
     } catch (error) {
@@ -95,4 +99,61 @@ export const stacksRoute = new Hono()
   .post("/stacks/:name/restart", ctx => runStackAction(ctx, "restart", ["restart"]))
   .post("/stacks/:name/pull", ctx => runStackAction(ctx, "pull", ["pull"]))
   .post("/stacks/:name/build", ctx => runStackAction(ctx, "build", ["build"]))
-  .post("/stacks/:name/build-up", ctx => runStackAction(ctx, "build-up", ["up", "-d", "--build"]));
+  .post("/stacks/:name/build-up", ctx => runStackAction(ctx, "build-up", ["up", "-d", "--build"]))
+  .get("/stacks/:name/updates", ctx => {
+    const name = ctx.req.param("name") ?? "";
+    const cached = getCachedUpdates(name);
+
+    return ctx.json(
+      cached ?? { stackName: name, results: [], lastChecked: null, hasUpdates: false },
+      200,
+    );
+  })
+  .post("/stacks/:name/check-updates", async ctx => {
+    const name = ctx.req.param("name");
+    const stack = findStack(name);
+    if (!stack) {
+      return ctx.json({ error: "Stack not found" }, 404);
+    }
+
+    listContainers()
+      .then(containers => {
+        const matched = matchContainersToStacks([stack], containers);
+        return checkStackUpdates(name, matched[0].containers);
+      })
+      .then(status => {
+        setCachedUpdates(name, status);
+        broadcastStackUpdates(name, status);
+      })
+      .catch(err => {
+        console.error(`Update check failed for "${name}":`, err);
+      });
+
+    return ctx.json({ accepted: true }, 202);
+  })
+  .post("/stacks/:name/update", ctx => {
+    const name = ctx.req.param("name");
+    const stack = findStack(name);
+    if (!stack) {
+      return ctx.json({ error: "Stack not found" }, 404);
+    }
+
+    const onLine = (line: string) => broadcastStackOutput(name, line);
+
+    runComposeStreaming(stack.entrypoint, ["pull"], onLine)
+      .then(pullResult => {
+        if (!pullResult.success) {
+          throw new Error(pullResult.stderr || "Pull failed");
+        }
+
+        return runComposeStreaming(stack.entrypoint, ["up", "-d"], onLine);
+      })
+      .then(upResult => {
+        broadcastStackAction(name, "update", upResult.success, upResult.stderr || undefined);
+      })
+      .catch(error => {
+        broadcastStackAction(name, "update", false, String(error));
+      });
+
+    return ctx.json({ accepted: true }, 202);
+  });
