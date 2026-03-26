@@ -1,6 +1,7 @@
 import React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Container, Stack } from "@hosuto/shared";
+import { computeStackStatus } from "@hosuto/shared";
 import { wsUrl } from "../lib/api";
 
 const RECONNECT_BASE_DELAY = 1000;
@@ -25,14 +26,9 @@ const ACTION_TO_STATE: Record<string, { status: Container["status"]; state: stri
   restart: { status: "running", state: "running" },
 };
 
-const getStackStatus = (containers: Container[]): Stack["status"] => {
+const getStackStatus = (containers: Container[], expected: number): Stack["status"] => {
   const running = containers.filter(container => container.state === "running").length;
-
-  if (running === 0) {
-    return "stopped";
-  }
-
-  return running === containers.length ? "running" : "partial";
+  return computeStackStatus(running, expected);
 };
 
 const updateContainerInStacks = (
@@ -57,7 +53,7 @@ const updateContainerInStacks = (
       uptime: stateUpdate.state === "running" ? "Up just now" : null,
     };
 
-    return { ...stack, containers, status: getStackStatus(containers) };
+    return { ...stack, containers, status: getStackStatus(containers, stack.status.expected) };
   });
 
   return changed ? updated : null;

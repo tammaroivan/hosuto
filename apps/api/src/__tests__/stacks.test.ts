@@ -51,7 +51,7 @@ describe("GET /api/stacks", () => {
     expect(body).toHaveLength(2);
     expect(body[0].name).toBe("mystack");
     expect(body[0].containers).toHaveLength(1);
-    expect(body[0].status).toBe("running");
+    expect(body[0].status.state).toBe("running");
     expect(body[1].name).toBe("media");
     expect(body[1].containers).toHaveLength(0);
   });
@@ -76,7 +76,7 @@ describe("GET /api/stacks", () => {
     const res = await app.request("/api/stacks");
 
     const body = await res.json();
-    expect(body[0].status).toBe("partial");
+    expect(body[0].status.state).toBe("partial");
     expect(body[0].containers).toHaveLength(2);
   });
 
@@ -90,7 +90,7 @@ describe("GET /api/stacks", () => {
     const res = await app.request("/api/stacks");
 
     const body = await res.json();
-    expect(body[0].status).toBe("stopped");
+    expect(body[0].status.state).toBe("stopped");
   });
 
   it("does not assign containers to wrong stack", async () => {
@@ -122,7 +122,7 @@ describe("GET /api/stacks", () => {
     const body = await res.json();
     expect(body).toHaveLength(1);
     expect(body[0].containers).toHaveLength(0);
-    expect(body[0].status).toBe("stopped");
+    expect(body[0].status.state).toBe("stopped");
   });
 });
 

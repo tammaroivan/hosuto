@@ -16,12 +16,13 @@ const Dashboard = () => {
 
   const { allContainers, running, stopped } = React.useMemo(() => {
     const containers = stacks.data?.flatMap(stack => stack.containers) || [];
-    const runningContainers = containers.filter(container => container.state === "running").length;
+    const runningCount = stacks.data?.reduce((sum, stack) => sum + stack.status.running, 0) ?? 0;
+    const expectedCount = stacks.data?.reduce((sum, stack) => sum + stack.status.expected, 0) ?? 0;
 
     return {
       allContainers: containers,
-      running: runningContainers,
-      stopped: containers.length - runningContainers,
+      running: runningCount,
+      stopped: expectedCount - runningCount,
     };
   }, [stacks.data]);
 

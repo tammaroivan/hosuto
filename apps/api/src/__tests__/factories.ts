@@ -44,7 +44,7 @@ export const makeStack = (overrides: Partial<Stack> = {}): Stack => {
     entrypoint: "/stacks/mystack/docker-compose.yml",
     files: [],
     containers: [],
-    status: "stopped",
+    status: { state: "stopped", running: 0, expected: 0 },
     ...overrides,
   };
 };

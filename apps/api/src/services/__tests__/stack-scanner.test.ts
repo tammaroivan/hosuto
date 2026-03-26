@@ -252,7 +252,7 @@ describe("scanStacksDirectory", () => {
 
     const stacks = scanStacksDirectory(TEST_DIR);
     expect(stacks[0].containers).toEqual([]);
-    expect(stacks[0].status).toBe("stopped");
+    expect(stacks[0].status.state).toBe("stopped");
   });
 
   it("discovers stacks two levels deep", () => {

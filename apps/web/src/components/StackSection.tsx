@@ -6,7 +6,7 @@ import { ContainerTable } from "./ContainerTable";
 
 export const StackSection = ({ stack }: { stack: Stack }) => {
   const stackAction = useStackAction();
-  const isStopped = stack.status === "stopped";
+  const isStopped = stack.status.state === "stopped";
 
   return (
     <section>

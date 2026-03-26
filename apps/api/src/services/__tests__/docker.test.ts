@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { matchContainersToStacks, mapStatus, mapPorts } from "../docker";
-import type { ComposeFile, Container } from "@hosuto/shared";
+import type { ComposeFile, Container, StackStatus } from "@hosuto/shared";
 
 interface PortInput {
   IP?: string;
@@ -29,12 +29,12 @@ const makeContainer = (overrides: Partial<Container> = {}): Container => {
 const makeStack = (
   name: string,
   services: string[] = [],
-  status: "running" | "partial" | "stopped" = "stopped",
+  state: "running" | "partial" | "stopped" = "stopped",
 ) => ({
   name,
   files: [{ services }] as ComposeFile[],
   containers: [] as Container[],
-  status,
+  status: { state, running: 0, expected: services.length } as StackStatus,
 });
 
 describe("mapStatus", () => {
@@ -159,7 +159,7 @@ describe("matchContainersToStacks", () => {
   });
 
   it("sets status to running when all containers are running", () => {
-    const stacks = [makeStack("media")];
+    const stacks = [makeStack("media", ["plex", "sonarr"])];
 
     const containers = [
       makeContainer({ name: "plex", stackName: "media", serviceName: "plex", state: "running" }),
@@ -172,11 +172,13 @@ describe("matchContainersToStacks", () => {
     ];
 
     matchContainersToStacks(stacks, containers);
-    expect(stacks[0].status).toBe("running");
+    expect(stacks[0].status.state).toBe("running");
+    expect(stacks[0].status.running).toBe(2);
+    expect(stacks[0].status.expected).toBe(2);
   });
 
   it("sets status to stopped when all containers are stopped", () => {
-    const stacks = [makeStack("media", [], "running")];
+    const stacks = [makeStack("media", ["plex", "sonarr"], "running")];
 
     const containers = [
       makeContainer({ name: "plex", stackName: "media", serviceName: "plex", state: "exited" }),
@@ -189,11 +191,12 @@ describe("matchContainersToStacks", () => {
     ];
 
     matchContainersToStacks(stacks, containers);
-    expect(stacks[0].status).toBe("stopped");
+    expect(stacks[0].status.state).toBe("stopped");
+    expect(stacks[0].status.running).toBe(0);
   });
 
   it("sets status to partial when some containers are running", () => {
-    const stacks = [makeStack("media")];
+    const stacks = [makeStack("media", ["plex", "sonarr"])];
 
     const containers = [
       makeContainer({ name: "plex", stackName: "media", serviceName: "plex", state: "running" }),
@@ -206,7 +209,9 @@ describe("matchContainersToStacks", () => {
     ];
 
     matchContainersToStacks(stacks, containers);
-    expect(stacks[0].status).toBe("partial");
+    expect(stacks[0].status.state).toBe("partial");
+    expect(stacks[0].status.running).toBe(1);
+    expect(stacks[0].status.expected).toBe(2);
   });
 
   it("sets status to stopped when no containers match", () => {
@@ -222,7 +227,7 @@ describe("matchContainersToStacks", () => {
     ];
 
     matchContainersToStacks(stacks, containers);
-    expect(stacks[0].status).toBe("stopped");
+    expect(stacks[0].status.state).toBe("stopped");
     expect(stacks[0].containers).toHaveLength(0);
   });
 
@@ -255,7 +260,7 @@ describe("matchContainersToStacks", () => {
     const placeholders = stacks[0].containers.filter(c => c.status === "not_created");
     expect(placeholders).toHaveLength(2);
     expect(placeholders.map(p => p.name).sort()).toEqual(["radarr", "sonarr"]);
-    expect(stacks[0].status).toBe("running");
+    expect(stacks[0].status).toEqual({ state: "partial", running: 1, expected: 3 });
   });
 
   it("does not synthesize placeholders when all services have containers", () => {
@@ -275,5 +280,23 @@ describe("matchContainersToStacks", () => {
 
     expect(stacks[0].containers).toHaveLength(2);
     expect(stacks[0].containers.every(c => c.status !== "not_created")).toBe(true);
+  });
+
+  it("reports running and expected counts in status", () => {
+    const stacks = [makeStack("media", ["plex", "sonarr", "radarr"])];
+
+    const containers = [
+      makeContainer({ name: "plex", stackName: "media", serviceName: "plex", state: "running" }),
+      makeContainer({
+        name: "sonarr",
+        stackName: "media",
+        serviceName: "sonarr",
+        state: "exited",
+      }),
+    ];
+
+    matchContainersToStacks(stacks, containers);
+
+    expect(stacks[0].status).toEqual({ state: "partial", running: 1, expected: 3 });
   });
 });

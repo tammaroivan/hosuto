@@ -34,12 +34,20 @@ export interface PortMapping {
   protocol: "tcp" | "udp";
 }
 
+export type StackState = "running" | "partial" | "stopped";
+
+export interface StackStatus {
+  state: StackState;
+  running: number;
+  expected: number;
+}
+
 export interface Stack {
   name: string;
   entrypoint: string;
   files: ComposeFile[];
   containers: Container[];
-  status: "running" | "partial" | "stopped";
+  status: StackStatus;
 }
 
 export interface ComposeFile {

@@ -29,7 +29,7 @@ const StackEditor = () => {
   const stacks = useStacks();
   const stack = stacks.data?.find(stack => stack.name === stackName);
   const stackAction = useStackAction();
-  const isStopped = stack?.status === "stopped";
+  const isStopped = stack?.status.state === "stopped";
   const fileTree = useStackFileTree(stackName);
 
   const {
@@ -59,19 +59,20 @@ const StackEditor = () => {
     return <p className="text-accent-rose">Failed to load stack files.</p>;
   }
 
-  const stackStatus = stack?.status ?? "stopped";
-  const statusLabel =
-    stackStatus === "running" ? "Running" : stackStatus === "partial" ? "Partial" : "Stopped";
+  const stackState = stack?.status.state ?? "stopped";
+  const statusLabel = stack
+    ? `${stack.status.running}/${stack.status.expected} Running`
+    : "Stopped";
   const statusColor =
-    stackStatus === "running"
+    stackState === "running"
       ? "border-accent-green/30 bg-accent-green/5 text-accent-green"
-      : stackStatus === "partial"
+      : stackState === "partial"
         ? "border-yellow-500/30 bg-yellow-500/5 text-yellow-500"
         : "border-border text-text-muted";
   const statusDot =
-    stackStatus === "running"
+    stackState === "running"
       ? "bg-accent-green"
-      : stackStatus === "partial"
+      : stackState === "partial"
         ? "bg-yellow-500"
         : "bg-text-muted";
 

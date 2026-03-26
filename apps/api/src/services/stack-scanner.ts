@@ -98,7 +98,7 @@ export const scanStacksDirectory = (stacksDir: string): Stack[] => {
       entrypoint: absolutePath,
       files,
       containers: [], // TODO: Implement containers list
-      status: "stopped", // TODO: Implement status
+      status: { state: "stopped", running: 0, expected: 0 },
     });
   }
 

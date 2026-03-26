@@ -4,7 +4,9 @@ import type {
   ContainerMount,
   ContainerStatus,
   PortMapping,
+  StackStatus,
 } from "@hosuto/shared";
+import { computeStackStatus } from "@hosuto/shared";
 import { docker } from "./docker-client";
 
 /**
@@ -99,7 +101,7 @@ export const matchContainersToStacks = <
     name: string;
     files: ComposeFile[];
     containers: Container[];
-    status: "running" | "partial" | "stopped";
+    status: StackStatus;
   },
 >(
   stacks: T[],
@@ -138,17 +140,7 @@ export const matchContainersToStacks = <
     stack.containers = [...realContainers, ...placeholders];
 
     const running = realContainers.filter(container => container.state === "running").length;
-    const total = realContainers.length;
-
-    if (total === 0) {
-      stack.status = "stopped";
-    } else if (running === total) {
-      stack.status = "running";
-    } else if (running === 0) {
-      stack.status = "stopped";
-    } else {
-      stack.status = "partial";
-    }
+    stack.status = computeStackStatus(running, expectedServices.size);
   }
 
   return stacks;
