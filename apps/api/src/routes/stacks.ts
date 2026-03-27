@@ -12,9 +12,9 @@ import {
 import { createStack, StackValidationError, StackConflictError } from "../services/stack-service";
 import { checkStackUpdates } from "../services/update-checker";
 import { getCachedUpdates, setCachedUpdates } from "../services/update-scheduler";
-import { DEFAULT_STACKS_DIR } from "@hosuto/shared";
+import { DEFAULT_STACKS_DIR, computeStackStatus } from "@hosuto/shared";
 
-const stacksDir = Bun.env.STACKS_DIR || DEFAULT_STACKS_DIR;
+const stacksDir = process.env.STACKS_DIR || DEFAULT_STACKS_DIR;
 
 const findStack = (name: string | undefined) => {
   if (!name) {

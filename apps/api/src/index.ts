@@ -21,7 +21,7 @@ const settings = loadSettings();
 startUpdateScheduler(settings.updateCheckInterval);
 
 export default {
-  port: parseInt(Bun.env.PORT || "3000", 10),
+  port: parseInt(process.env.PORT || "3000", 10),
   fetch: app.fetch,
   websocket,
 };
