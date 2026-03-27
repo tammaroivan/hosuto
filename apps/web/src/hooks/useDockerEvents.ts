@@ -121,11 +121,7 @@ export const useDockerEvents = () => {
           }
 
           if (message.type === "stack:updates") {
-            const { payload } = message;
-            queryClient.invalidateQueries({
-              queryKey: ["updates", payload.stackName],
-            });
-
+            queryClient.invalidateQueries({ queryKey: ["stacks"] });
             return;
           }
 

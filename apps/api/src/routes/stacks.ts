@@ -60,7 +60,9 @@ export const stacksRoute = new Hono()
         stack.updates = getCachedUpdates(stack.name);
       }
 
-      const matchedIds = new Set(matched.flatMap(stack => stack.containers.map(container => container.id)));
+      const matchedIds = new Set(
+        matched.flatMap(stack => stack.containers.map(container => container.id)),
+      );
       const standalone = containers.filter(container => !matchedIds.has(container.id));
 
       if (standalone.length > 0) {
@@ -129,16 +131,21 @@ export const stacksRoute = new Hono()
   })
   .post("/stacks/:name/check-updates", async ctx => {
     const name = ctx.req.param("name");
-    const stack = findStack(name);
-    if (!stack) {
-      return ctx.json({ error: "Stack not found" }, 404);
-    }
 
     listContainers()
       .then(containers => {
-        const matched = matchContainersToStacks([stack], containers);
-        return checkStackUpdates(name, matched[0].containers);
+        if (name === "standalone") {
+          return containers.filter(container => !container.stackName);
+        }
+
+        const stack = findStack(name);
+        if (!stack) {
+          throw new Error("Stack not found");
+        }
+
+        return matchContainersToStacks([stack], containers)[0].containers;
       })
+      .then(stackContainers => checkStackUpdates(name, stackContainers))
       .then(status => {
         setCachedUpdates(name, status);
         broadcastStackUpdates(name, status);
@@ -168,6 +175,15 @@ export const stacksRoute = new Hono()
       })
       .then(upResult => {
         broadcastStackAction(name, "update", upResult.success, upResult.stderr || undefined);
+        if (upResult.success) {
+          setCachedUpdates(name, {
+            stackName: name,
+            results: [],
+            lastChecked: new Date().toISOString(),
+            hasUpdates: false,
+          });
+          broadcastStackUpdates(name, { hasUpdates: false });
+        }
       })
       .catch(error => {
         broadcastStackAction(name, "update", false, String(error));

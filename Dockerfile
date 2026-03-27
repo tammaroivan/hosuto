@@ -13,7 +13,11 @@ COPY apps/web apps/web
 RUN bun run build
 
 FROM oven/bun:1-slim
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 COPY --from=docker:cli /usr/local/bin/docker /usr/local/bin/docker
+COPY --from=docker/buildx-bin /buildx /usr/local/lib/docker/cli-plugins/docker-buildx
 COPY --from=docker/compose-bin /docker-compose /usr/local/lib/docker/cli-plugins/docker-compose
 WORKDIR /app
 COPY --from=build /app/apps/api/dist ./dist

@@ -9,6 +9,7 @@ import { ContainerTable } from "./ContainerTable";
 
 export const StackSection = ({ stack }: { stack: Stack }) => {
   const stackAction = useStackAction();
+  const isStandalone = !stack.entrypoint;
   const isStopped = stack.status.state === "stopped";
   const hasUpdates = stack.updates?.hasUpdates ?? false;
 
@@ -37,7 +38,9 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
       <div className="mb-3 flex items-center justify-between px-1">
         <div className="flex items-baseline gap-3">
           <h2 className="text-sm font-bold uppercase tracking-wider text-white">{stack.name}</h2>
-          <span className="font-mono text-xs text-text-muted">{stack.entrypoint}</span>
+          {!isStandalone && (
+            <span className="font-mono text-xs text-text-muted">{stack.entrypoint}</span>
+          )}
           {hasUpdates && (
             <span className="rounded-full bg-accent-cyan/10 px-2 py-0.5 text-xs font-bold text-accent-cyan">
               Updates available
@@ -45,14 +48,33 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
           )}
         </div>
         <div className="flex gap-1.5">
-          <Link
-            to="/stacks/$stackName/edit"
-            params={{ stackName: stack.name }}
-            className="rounded-md border border-border px-2.5 py-1 text-xs font-bold text-text-muted transition-colors hover:border-border-hover hover:bg-border hover:text-white"
-          >
-            Edit
-          </Link>
-          {isStopped ? (
+          {!isStandalone && (
+            <Link
+              to="/stacks/$stackName/edit"
+              params={{ stackName: stack.name }}
+              className="rounded-md border border-border px-2.5 py-1 text-xs font-bold text-text-muted transition-colors hover:border-border-hover hover:bg-border hover:text-white"
+            >
+              Edit
+            </Link>
+          )}
+          {isStandalone ? (
+            <>
+              {hasUpdates ? (
+                <ActionButton
+                  label="Update"
+                  className="text-accent-cyan"
+                  disabled={stackAction.isPending}
+                  onClick={() => stackAction.mutate({ name: stack.name, action: "update" })}
+                />
+              ) : (
+                <ActionButton
+                  label={triggerCheck.isPending ? "Checking..." : "Check Updates"}
+                  disabled={triggerCheck.isPending}
+                  onClick={() => triggerCheck.mutate()}
+                />
+              )}
+            </>
+          ) : isStopped ? (
             <>
               <ActionButton
                 label="Up"
