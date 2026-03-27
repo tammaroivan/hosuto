@@ -12,9 +12,8 @@ const isDev = Bun.env.NODE_ENV !== "production";
 
 const app = new Hono();
 
-app.use("*", logger());
-
 if (isDev) {
+  app.use("*", logger());
   app.use("*", cors());
 }
 
