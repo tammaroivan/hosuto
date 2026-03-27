@@ -17,7 +17,7 @@ export const setCachedUpdates = (stackName: string, status: StackUpdateStatus): 
 };
 
 const runUpdateCheck = async (): Promise<void> => {
-  const stacksDir = process.env.STACKS_DIR || DEFAULT_STACKS_DIR;
+  const stacksDir = Bun.env.STACKS_DIR || DEFAULT_STACKS_DIR;
 
   try {
     const stacks = scanStacksDirectory(stacksDir);

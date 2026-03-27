@@ -10,8 +10,8 @@ export const settingsRoute = new Hono()
     return ctx.json(
       {
         updateCheckInterval: settings.updateCheckInterval,
-        stacksDir: process.env.STACKS_DIR || "/stacks",
-        dockerSocket: process.env.DOCKER_SOCKET || "/var/run/docker.sock",
+        stacksDir: Bun.env.STACKS_DIR || "/stacks",
+        dockerSocket: Bun.env.DOCKER_SOCKET || "/var/run/docker.sock",
       },
       200,
     );

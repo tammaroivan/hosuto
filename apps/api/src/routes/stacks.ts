@@ -14,7 +14,7 @@ import { checkStackUpdates } from "../services/update-checker";
 import { getCachedUpdates, setCachedUpdates } from "../services/update-scheduler";
 import { DEFAULT_STACKS_DIR } from "@hosuto/shared";
 
-const stacksDir = process.env.STACKS_DIR || DEFAULT_STACKS_DIR;
+const stacksDir = Bun.env.STACKS_DIR || DEFAULT_STACKS_DIR;
 
 const findStack = (name: string | undefined) => {
   if (!name) {
@@ -58,6 +58,24 @@ export const stacksRoute = new Hono()
 
       for (const stack of matched) {
         stack.updates = getCachedUpdates(stack.name);
+      }
+
+      const matchedIds = new Set(matched.flatMap(stack => stack.containers.map(container => container.id)));
+      const standalone = containers.filter(container => !matchedIds.has(container.id));
+
+      if (standalone.length > 0) {
+        matched.push({
+          name: "standalone",
+          entrypoint: "",
+          files: [],
+          containers: standalone,
+          status: computeStackStatus(
+            standalone.filter(container => container.state === "running").length,
+            standalone.length,
+          ),
+          hasBuildDirectives: false,
+          updates: null,
+        });
       }
 
       return ctx.json(matched);
