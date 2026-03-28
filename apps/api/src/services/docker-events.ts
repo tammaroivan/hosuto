@@ -12,7 +12,7 @@ export const removeClient = (ws: WSContext): void => {
   clients.delete(ws);
 };
 
-const broadcast = (message: string): void => {
+export const broadcast = (message: string): void => {
   for (const client of clients) {
     try {
       client.send(message);

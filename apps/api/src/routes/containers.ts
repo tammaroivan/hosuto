@@ -3,11 +3,17 @@ import { validator } from "hono/validator";
 import { listContainers, getContainer } from "../services/docker";
 import { docker } from "../services/docker-client";
 import { getContainerLogs } from "../services/docker-logs";
+import { getCachedStats, getContainerStats } from "../services/docker-stats";
 
 export const containersRoute = new Hono()
   .get("/containers", async ctx => {
     const containers = await listContainers();
     return ctx.json(containers);
+  })
+  .get("/containers/stats", async ctx => {
+    const stats = getCachedStats();
+
+    return ctx.json(stats, 200);
   })
   .get("/containers/:id", async ctx => {
     const containerId = ctx.req.param("id");
@@ -37,12 +43,21 @@ export const containersRoute = new Hono()
       }
     },
   )
+  .get("/containers/:id/stats", async ctx => {
+    const containerId = ctx.req.param("id");
+    const stats = getContainerStats(containerId);
+    if (!stats) {
+      return ctx.json({ error: "No stats available" }, 404);
+    }
+
+    return ctx.json(stats, 200);
+  })
   .post("/containers/:id/start", async ctx => {
     const containerId = ctx.req.param("id");
 
     try {
       const container = docker.getContainer(containerId);
-      container.start();
+      await container.start();
       return ctx.json({ ok: true });
     } catch {
       return ctx.json({ error: "Failed to start container" }, 500);
@@ -53,7 +68,7 @@ export const containersRoute = new Hono()
 
     try {
       const container = docker.getContainer(containerId);
-      container.stop();
+      await container.stop();
       return ctx.json({ ok: true });
     } catch {
       return ctx.json({ error: "Failed to stop container" }, 500);
@@ -64,7 +79,7 @@ export const containersRoute = new Hono()
 
     try {
       const container = docker.getContainer(containerId);
-      container.restart();
+      await container.restart();
       return ctx.json({ ok: true });
     } catch {
       return ctx.json({ error: "Failed to restart container" }, 500);

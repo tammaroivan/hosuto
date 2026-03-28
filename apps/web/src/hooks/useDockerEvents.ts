@@ -125,6 +125,11 @@ export const useDockerEvents = () => {
             return;
           }
 
+          if (message.type === "stats") {
+            queryClient.setQueryData(["container-stats"], message.payload);
+            return;
+          }
+
           if (message.type !== "container:status") {
             return;
           }

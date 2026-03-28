@@ -1,32 +1,30 @@
 import React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
-import type { StackState } from "@hosuto/shared";
 import { useHealth } from "../hooks/useHealth";
 import { useStacks } from "../hooks/useStacks";
-import { DashboardToolbar } from "../components/DashboardToolbar";
-import { SearchBar } from "../components/SearchBar";
-import { StackSection } from "../components/StackSection";
+import { useContainerStats } from "../hooks/useContainerStats";
+import { CommandBar } from "../components/CommandBar";
+import { MetricsStrip } from "../components/MetricsStrip";
+import { StackRow } from "../components/StackRow";
 import { CreateStackDialog } from "../components/CreateStackDialog";
+import { Text } from "../components/ui/text";
 
 const Dashboard = () => {
-  const queryClient = useQueryClient();
   const health = useHealth();
   const stacks = useStacks();
+  const stats = useContainerStats();
   const [createOpen, setCreateOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState<StackState | null>(null);
 
-  const { allContainers, running, stopped } = React.useMemo(() => {
-    const containers = stacks.data?.flatMap(stack => stack.containers) || [];
-    const runningCount = stacks.data?.reduce((sum, stack) => sum + stack.status.running, 0) ?? 0;
-    const expectedCount = stacks.data?.reduce((sum, stack) => sum + stack.status.expected, 0) ?? 0;
+  const { containerCount, runningCount, updatesCount } = React.useMemo(() => {
+    if (!stacks.data) {
+      return { containerCount: 0, runningCount: 0, updatesCount: 0 };
+    }
 
-    return {
-      allContainers: containers,
-      running: runningCount,
-      stopped: expectedCount - runningCount,
-    };
+    const containers = stacks.data.flatMap(stack => stack.containers);
+    const running = stacks.data.reduce((sum, stack) => sum + stack.status.running, 0);
+    const updates = stacks.data.filter(stack => stack.updates?.hasUpdates).length;
+    return { containerCount: containers.length, runningCount: running, updatesCount: updates };
   }, [stacks.data]);
 
   const filteredStacks = React.useMemo(() => {
@@ -35,77 +33,85 @@ const Dashboard = () => {
     }
 
     const query = search.toLowerCase().trim();
+    if (!query) {
+      return stacks.data;
+    }
 
-    return stacks.data.filter(stack => {
-      if (statusFilter && stack.status.state !== statusFilter) {
-        return false;
-      }
-      if (!query) {
-        return true;
-      }
-      if (stack.name.toLowerCase().includes(query)) {
-        return true;
-      }
-
-      return stack.containers.some(
-        container =>
-          container.name.toLowerCase().includes(query) ||
-          container.image.toLowerCase().includes(query),
-      );
-    });
-  }, [stacks.data, search, statusFilter]);
+    return stacks.data.filter(
+      stack =>
+        stack.name.toLowerCase().includes(query) ||
+        stack.containers.some(
+          container =>
+            container.name.toLowerCase().includes(query) ||
+            container.image.toLowerCase().includes(query),
+        ),
+    );
+  }, [stacks.data, search]);
 
   return (
-    <div className="space-y-6">
-      {health.isLoading && <p className="text-text-muted">Connecting to server...</p>}
-      {health.isError && <p className="text-accent-rose">Failed to connect to server.</p>}
+    <>
+      <CommandBar
+        search={search}
+        onSearchChange={setSearch}
+        onCreateStack={() => setCreateOpen(true)}
+      />
 
-      {stacks.isError && (
-        <div className="rounded-xl border border-accent-rose/30 bg-accent-rose/5 p-4">
-          <p className="font-medium text-accent-rose">Failed to load stacks</p>
-          <p className="mt-1 text-sm text-accent-rose/80">
-            Could not connect to Docker. Is the Docker socket accessible?
-          </p>
-        </div>
-      )}
+      <MetricsStrip
+        stackCount={stacks.data?.length ?? 0}
+        containerCount={containerCount}
+        runningCount={runningCount}
+        updatesCount={updatesCount}
+        cpuPercent={stats?.totals.cpuPercent ?? 0}
+        memoryUsage={stats?.totals.memoryUsage ?? 0}
+      />
 
-      {stacks.data && (
-        <DashboardToolbar
-          running={running}
-          stopped={stopped}
-          containerCount={allContainers.length}
-          stackCount={stacks.data.length}
-          isFetching={stacks.isFetching}
-          onCreateStack={() => setCreateOpen(true)}
-          onRefresh={() => queryClient.invalidateQueries({ queryKey: ["stacks"] })}
-        />
-      )}
-
-      {stacks.isLoading && <p className="text-text-muted">Loading stacks...</p>}
-      {stacks.data && stacks.data.length === 0 && !stacks.isError && (
-        <p className="text-text-muted">No stacks found. Mount your compose files directory.</p>
-      )}
-
-      {stacks.data && stacks.data.length > 0 && (
-        <SearchBar
-          search={search}
-          onSearchChange={setSearch}
-          statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
-        />
-      )}
-
-      <div className="space-y-10">
-        {filteredStacks.map(stack => (
-          <StackSection key={stack.name} stack={stack} />
-        ))}
-        {stacks.data && filteredStacks.length === 0 && stacks.data.length > 0 && (
-          <p className="text-sm text-text-muted">No stacks match your search.</p>
+      <main className="custom-scroll flex-1 space-y-3 overflow-y-auto p-6">
+        {health.isLoading && (
+          <Text as="p" color="secondary">
+            Connecting to server...
+          </Text>
         )}
-      </div>
+        {health.isError && (
+          <Text as="p" color="danger">
+            Failed to connect to server.
+          </Text>
+        )}
+
+        {stacks.isError && (
+          <div className="rounded-xl border border-danger/30 bg-danger/5 p-4">
+            <Text as="p" weight="medium" color="danger">
+              Failed to load stacks
+            </Text>
+            <Text as="p" color="danger" className="mt-1 opacity-80">
+              Could not connect to Docker. Is the Docker socket accessible?
+            </Text>
+          </div>
+        )}
+
+        {stacks.isLoading && (
+          <Text as="p" color="secondary">
+            Loading stacks...
+          </Text>
+        )}
+        {stacks.data && stacks.data.length === 0 && !stacks.isError && (
+          <Text as="p" color="secondary">
+            No stacks found. Mount your compose files directory.
+          </Text>
+        )}
+
+        {filteredStacks.map(stack => (
+          <StackRow key={stack.name} stack={stack} containerStats={stats?.containers} />
+        ))}
+
+        {stacks.data && filteredStacks.length === 0 && stacks.data.length > 0 && (
+          <Text as="p" color="secondary">
+            No stacks match your search.
+          </Text>
+        )}
+      </main>
 
       {createOpen && <CreateStackDialog onClose={() => setCreateOpen(false)} />}
-    </div>
+    </>
   );
 };
 

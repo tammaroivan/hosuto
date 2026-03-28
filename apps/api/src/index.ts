@@ -1,6 +1,7 @@
 import { upgradeWebSocket, websocket } from "hono/bun";
 import { app } from "./app";
-import { startDockerEventStream, startHeartbeat } from "./services/docker-events";
+import { broadcast, startDockerEventStream, startHeartbeat } from "./services/docker-events";
+import { startStatsCollector } from "./services/docker-stats";
 import { startUpdateScheduler } from "./services/update-scheduler";
 import { loadSettings } from "./services/settings-store";
 import { wsEvents } from "./services/ws-handler";
@@ -16,6 +17,7 @@ startDockerEventStream().catch(error => {
 });
 
 startHeartbeat(WS_HEARTBEAT_INTERVAL);
+startStatsCollector(broadcast);
 
 const settings = loadSettings();
 startUpdateScheduler(settings.updateCheckInterval);

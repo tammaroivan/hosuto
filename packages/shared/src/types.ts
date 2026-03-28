@@ -133,3 +133,30 @@ export interface RenameResult {
   oldPath: string;
   newPath: string;
 }
+
+// Container stats types
+
+export interface ContainerStats {
+  containerId: string;
+  name: string;
+  cpuPercent: number;
+  memoryUsage: number;
+  memoryLimit: number;
+  memoryPercent: number;
+  networkRx: number;
+  networkTx: number;
+  blockRead: number;
+  blockWrite: number;
+  pids: number;
+}
+
+export interface AggregatedStats {
+  containers: Record<string, ContainerStats>;
+  totals: {
+    cpuPercent: number;
+    memoryUsage: number;
+    memoryLimit: number;
+    memoryPercent: number;
+  };
+  timestamp: string;
+}

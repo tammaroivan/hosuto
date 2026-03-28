@@ -1,54 +1,98 @@
-import { Link } from "@tanstack/react-router";
-import { LayoutDashboard, Settings } from "lucide-react";
-import { useHealth } from "../hooks/useHealth";
-import { useDockerEvents, type ConnectionStatus } from "../hooks/useDockerEvents";
-import { DeployOutput } from "./DeployOutput";
+import { Link, useRouterState } from "@tanstack/react-router";
+import {
+  Box,
+  LayoutGrid,
+  Bell,
+  Network,
+  Database,
+  Settings,
+  RefreshCw,
+  Activity,
+} from "lucide-react";
+import { cn } from "../lib/cn";
+import type { LucideIcon } from "lucide-react";
 
-const NAV_ITEMS = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/settings", label: "Settings", icon: Settings },
+interface NavItem {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  enabled: boolean;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { to: "/", label: "Dashboard", icon: LayoutGrid, enabled: true },
+  { to: "/notifications", label: "Notifications", icon: Bell, enabled: false },
+  { to: "/network", label: "Network", icon: Network, enabled: false },
+  { to: "/volumes", label: "Volumes", icon: Database, enabled: false },
+  { to: "/updates", label: "Updates", icon: RefreshCw, enabled: false },
+  { to: "/activity", label: "Activity", icon: Activity, enabled: false },
 ];
 
-const STATUS_LABEL: Record<ConnectionStatus, { color: string; text: string }> = {
-  connected: { color: "bg-accent-green", text: "Live" },
-  connecting: { color: "bg-yellow-500", text: "Connecting..." },
-  disconnected: { color: "bg-accent-rose", text: "Disconnected" },
-};
-
 export const Sidebar = () => {
-  const health = useHealth();
-  const { status, deployOutput, clearDeployOutput } = useDockerEvents();
-  const statusInfo = STATUS_LABEL[status];
+  const routerState = useRouterState();
+  const currentPath = routerState.location.pathname;
 
   return (
-    <>
-      <aside className="w-56 shrink-0 border-r border-border bg-bg flex flex-col">
-        <div className="px-4 py-4">
-          <h1 className="text-lg font-bold tracking-tight text-white">Hosuto</h1>
+    <aside className="z-50 flex w-14 shrink-0 flex-col items-center border-r border-border/50 py-6 blur-panel">
+      <div className="mb-8">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/30 bg-primary/20">
+          <Box size={18} className="text-primary" />
         </div>
+      </div>
 
-        <nav className="flex-1 px-2 py-2">
-          {NAV_ITEMS.map(item => (
-            <Link
+      <nav className="flex flex-1 flex-col gap-4">
+        {NAV_ITEMS.map(item => {
+          const isActive = item.to === "/" ? currentPath === "/" : currentPath.startsWith(item.to);
+
+          if (item.enabled) {
+            return (
+              <Link
+                key={item.to}
+                to={item.to as "/"}
+                className={cn(
+                  "group relative flex h-10 w-10 items-center justify-center rounded-xl transition-all",
+                  isActive
+                    ? "bg-primary/10 text-primary active-glow"
+                    : "text-text-secondary hover:text-white hover:bg-surface-hover",
+                )}
+              >
+                <item.icon size={20} />
+                <Tooltip label={item.label} />
+              </Link>
+            );
+          }
+
+          return (
+            <div
               key={item.to}
-              to={item.to}
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-text-muted transition-colors hover:bg-surface-hover hover:text-text-primary [&.active]:bg-surface-hover [&.active]:text-white"
+              className="group relative flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-xl text-text-muted/40 transition-all"
             >
-              <item.icon size={16} />
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+              <item.icon size={20} />
+              <Tooltip label={`${item.label} (coming soon)`} />
+            </div>
+          );
+        })}
+      </nav>
 
-        <div className="border-t border-border px-4 py-3 flex items-center justify-between text-xs text-text-muted">
-          {health.data && <span>v{health.data.version}</span>}
-          <div className="flex items-center gap-1.5">
-            <span className={`inline-block h-2 w-2 rounded-full ${statusInfo.color}`} />
-            <span>{statusInfo.text}</span>
-          </div>
-        </div>
-      </aside>
-      {deployOutput && <DeployOutput output={deployOutput} onClose={clearDeployOutput} />}
-    </>
+      <div className="mt-auto">
+        <Link
+          to="/settings"
+          className={cn(
+            "flex h-10 w-10 items-center justify-center rounded-xl transition-all",
+            currentPath === "/settings"
+              ? "bg-primary/10 text-primary active-glow"
+              : "text-text-secondary hover:text-white hover:bg-surface-hover",
+          )}
+        >
+          <Settings size={20} />
+        </Link>
+      </div>
+    </aside>
   );
 };
+
+const Tooltip = ({ label }: { label: string }) => (
+  <span className="pointer-events-none absolute left-14 z-50 whitespace-nowrap rounded border border-border bg-surface px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+    {label}
+  </span>
+);

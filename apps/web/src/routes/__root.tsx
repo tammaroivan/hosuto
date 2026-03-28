@@ -2,14 +2,18 @@ import { createRootRoute, Outlet, useRouter } from "@tanstack/react-router";
 import { Toaster } from "react-hot-toast";
 import { Sidebar } from "../components/sidebar";
 import { ErrorFallback } from "../components/ErrorFallback";
+import { DeployOutput } from "../components/DeployOutput";
+import { useDockerEvents } from "../hooks/useDockerEvents";
 
 const RootLayout = () => {
+  const { deployOutput, clearDeployOutput } = useDockerEvents();
+
   return (
-    <div className="flex h-screen bg-bg text-text-primary">
+    <div className="flex h-screen w-full overflow-hidden bg-bg font-sans text-text-primary mesh-bg">
       <Sidebar />
-      <main className="flex min-w-0 flex-1 flex-col overflow-y-auto p-6">
+      <div className="flex min-w-0 flex-1 flex-col">
         <Outlet />
-      </main>
+      </div>
       <Toaster
         position="bottom-right"
         toastOptions={{
@@ -21,6 +25,7 @@ const RootLayout = () => {
           },
         }}
       />
+      {deployOutput && <DeployOutput output={deployOutput} onClose={clearDeployOutput} />}
     </div>
   );
 };
@@ -29,11 +34,11 @@ const RootErrorComponent = ({ error }: { error: Error }) => {
   const router = useRouter();
 
   return (
-    <div className="flex h-screen bg-bg text-text-primary">
+    <div className="flex h-screen w-full overflow-hidden bg-bg font-sans text-text-primary mesh-bg">
       <Sidebar />
-      <main className="flex min-w-0 flex-1 flex-col overflow-y-auto p-6">
+      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto p-6">
         <ErrorFallback error={error} resetErrorBoundary={() => router.invalidate()} />
-      </main>
+      </div>
     </div>
   );
 };

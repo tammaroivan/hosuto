@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { formatTimestamp, formatLogTimestamp, formatUptime } from "../format";
+import { formatTimestamp, formatLogTimestamp, formatUptime, formatMB } from "../format";
 
 describe("formatTimestamp", () => {
   beforeEach(() => {
@@ -85,5 +85,36 @@ describe("formatUptime", () => {
   it("passes through Docker status format", () => {
     expect(formatUptime("Up 2 weeks")).toBe("Up 2 weeks");
     expect(formatUptime("Up 3 hours")).toBe("Up 3 hours");
+  });
+});
+
+describe("formatMB", () => {
+  it("returns 0 MB for zero bytes", () => {
+    expect(formatMB(0)).toBe("0 MB");
+  });
+
+  it("formats bytes as MB", () => {
+    expect(formatMB(100 * 1024 * 1024)).toBe("100 MB");
+  });
+
+  it("rounds MB to nearest integer", () => {
+    expect(formatMB(256.7 * 1024 * 1024)).toBe("257 MB");
+  });
+
+  it("switches to GB for 1024+ MB", () => {
+    expect(formatMB(1024 * 1024 * 1024)).toBe("1.0 GB");
+  });
+
+  it("formats fractional GB", () => {
+    expect(formatMB(2.5 * 1024 * 1024 * 1024)).toBe("2.5 GB");
+  });
+
+  it("handles small values", () => {
+    expect(formatMB(1024 * 1024)).toBe("1 MB");
+  });
+
+  it("handles sub-MB values", () => {
+    const result = formatMB(512 * 1024);
+    expect(result).toBe("1 MB");
   });
 });

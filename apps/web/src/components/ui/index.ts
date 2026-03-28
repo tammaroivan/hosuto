@@ -8,4 +8,5 @@ export { Input } from "./Input";
 export { Modal, ModalTitle, ModalDescription, ModalActions } from "./Modal";
 export { ProgressBar } from "./ProgressBar";
 export { StatusDot } from "./StatusDot";
+export { Text } from "./text";
 export { Toggle } from "./Toggle";

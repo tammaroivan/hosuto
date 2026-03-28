@@ -86,3 +86,15 @@
 .pulse-dot {
   animation: pulse-dot 2s infinite ease-in-out;
 }
+
+/* Stack accordion grid */
+.stack-grid {
+  display: grid;
+  grid-template-columns: 20px 20px 1fr 150px 110px;
+  align-items: center;
+}
+
+/* Sidebar active glow */
+.active-glow {
+  border: 1px solid rgba(6, 246, 212, 0.4);
+}
