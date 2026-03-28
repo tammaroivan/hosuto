@@ -14,6 +14,5 @@ export const useStacks = () => {
       return res.json();
     },
     retry: 2,
-    staleTime: 60000,
   });
 };

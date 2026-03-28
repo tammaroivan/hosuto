@@ -22,6 +22,7 @@ const makeContainer = (overrides: Partial<Container> = {}): Container => {
     mounts: [],
     created: "2026-01-01T00:00:00.000Z",
     uptime: "Up 2 hours",
+    isSelf: false,
     ...overrides,
   };
 };

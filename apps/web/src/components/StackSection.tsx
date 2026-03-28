@@ -11,6 +11,7 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
   const stackAction = useStackAction();
   const isStandalone = !stack.entrypoint;
   const isStopped = stack.status.state === "stopped";
+  const isSelf = stack.containers.some(container => container.isSelf);
   const hasUpdates = stack.updates?.hasUpdates ?? false;
 
   const triggerCheck = useMutation({
@@ -26,7 +27,11 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
   });
 
   const handleDown = () => {
-    if (!confirm(`Stop and remove all containers in "${stack.name}"?`)) {
+    const message = isSelf
+      ? `This will stop Hosuto itself. You will lose access to the UI. Continue?`
+      : `Stop and remove all containers in "${stack.name}"?`;
+
+    if (!confirm(message)) {
       return;
     }
 
@@ -58,22 +63,11 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
             </Link>
           )}
           {isStandalone ? (
-            <>
-              {hasUpdates ? (
-                <ActionButton
-                  label="Update"
-                  className="text-accent-cyan"
-                  disabled={stackAction.isPending}
-                  onClick={() => stackAction.mutate({ name: stack.name, action: "update" })}
-                />
-              ) : (
-                <ActionButton
-                  label={triggerCheck.isPending ? "Checking..." : "Check Updates"}
-                  disabled={triggerCheck.isPending}
-                  onClick={() => triggerCheck.mutate()}
-                />
-              )}
-            </>
+            <ActionButton
+              label={triggerCheck.isPending ? "Checking..." : "Check Updates"}
+              disabled={triggerCheck.isPending}
+              onClick={() => triggerCheck.mutate()}
+            />
           ) : isStopped ? (
             <>
               <ActionButton

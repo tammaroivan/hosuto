@@ -9,6 +9,8 @@ import type {
 import { computeStackStatus } from "@hosuto/shared";
 import { docker } from "./docker-client";
 
+const selfId = Bun.env.HOSTNAME || "";
+
 /**
  * Lists all Docker containers.
  */
@@ -30,6 +32,7 @@ export const listContainers = async (): Promise<Container[]> => {
       mounts: [],
       created: new Date(info.Created * 1000).toISOString(),
       uptime: info.State === "running" ? info.Status.replace(/\s*\(.*\)$/, "") : null,
+      isSelf: selfId !== "" && info.Id.startsWith(selfId),
     };
   });
 };
@@ -90,6 +93,7 @@ export const getContainer = async (containerId: string): Promise<Container> => {
     mounts,
     created: info.Created,
     uptime: info.State.Running ? `Up since ${info.State.StartedAt}` : null,
+    isSelf: selfId !== "" && info.Id.startsWith(selfId),
   };
 };
 
@@ -133,6 +137,7 @@ export const matchContainersToStacks = <
           mounts: [],
           created: "",
           uptime: null,
+          isSelf: false,
         });
       }
     }

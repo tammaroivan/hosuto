@@ -97,7 +97,7 @@ const Dashboard = () => {
 
       <div className="space-y-10">
         {filteredStacks.map(stack => (
-          <StackSection key={stack.entrypoint} stack={stack} />
+          <StackSection key={stack.name} stack={stack} />
         ))}
         {stacks.data && filteredStacks.length === 0 && stacks.data.length > 0 && (
           <p className="text-sm text-text-muted">No stacks match your search.</p>

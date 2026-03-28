@@ -17,6 +17,7 @@ export interface Container {
   mounts: ContainerMount[];
   created: string;
   uptime: string | null;
+  isSelf: boolean;
 }
 
 export type ContainerStatus =

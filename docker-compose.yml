@@ -6,11 +6,8 @@ services:
       - "4678:4678"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /path/to/your/stacks:/stacks
+      - ${STACKS_DIR:-/opt/stacks}:/stacks
       - hosuto-data:/data
-    environment:
-      - STACKS_DIR=/stacks
-      - DATA_DIR=/data
     restart: unless-stopped
 
 volumes:

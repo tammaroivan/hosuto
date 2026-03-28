@@ -30,17 +30,22 @@ export const ContainerTable = ({ containers }: { containers: Container[] }) => {
             key={container.id}
             className={`col-span-full grid grid-cols-subgrid items-center border-b border-border transition-colors hover:bg-surface/40 ${isStopped ? "opacity-60" : ""}`}
           >
-            <div className="min-w-0 truncate px-4 py-2.5 text-sm font-semibold">
+            <div className="flex min-w-0 items-center gap-2 px-4 py-2.5 text-sm font-semibold">
               {isPlaceholder ? (
-                <span className="text-text-muted">{container.name}</span>
+                <span className="truncate text-text-muted">{container.name}</span>
               ) : (
                 <Link
                   to="/containers/$containerId"
                   params={{ containerId: container.id }}
-                  className="text-white transition-colors hover:text-accent-cyan"
+                  className="truncate text-white transition-colors hover:text-accent-cyan"
                 >
                   {container.name}
                 </Link>
+              )}
+              {container.isSelf && (
+                <span className="shrink-0 rounded-full bg-accent-green/10 px-2 py-0.5 text-xs font-bold text-accent-green">
+                  Hosuto
+                </span>
               )}
             </div>
             <div className="truncate px-4 py-2.5 font-mono text-xs">
@@ -122,7 +127,12 @@ export const ContainerTable = ({ containers }: { containers: Container[] }) => {
                         label="Stop"
                         className="text-accent-rose"
                         disabled={containerAction.isPending}
-                        onClick={() => containerAction.mutate({ id: container.id, name: container.name, action: "stop" })}
+                        onClick={() => {
+                          if (container.isSelf && !confirm("This will stop Hosuto. You will lose access to the UI. Continue?")) {
+                            return;
+                          }
+                          containerAction.mutate({ id: container.id, name: container.name, action: "stop" });
+                        }}
                       />
                     </>
                   )}
