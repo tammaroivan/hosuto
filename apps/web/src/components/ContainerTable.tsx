@@ -131,6 +131,7 @@ export const ContainerTable = ({ containers }: { containers: Container[] }) => {
                           if (container.isSelf && !confirm("This will stop Hosuto. You will lose access to the UI. Continue?")) {
                             return;
                           }
+
                           containerAction.mutate({ id: container.id, name: container.name, action: "stop" });
                         }}
                       />
