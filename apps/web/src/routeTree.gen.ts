@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as StacksStackNameRouteImport } from './routes/stacks.$stackName'
 import { Route as ContainersContainerIdRouteImport } from './routes/containers.$containerId'
+import { Route as StacksStackNameIndexRouteImport } from './routes/stacks.$stackName.index'
 import { Route as StacksStackNameEditRouteImport } from './routes/stacks.$stackName.edit'
 import { Route as ContainersContainerIdExecRouteImport } from './routes/containers_.$containerId.exec'
 
@@ -25,15 +27,25 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StacksStackNameRoute = StacksStackNameRouteImport.update({
+  id: '/stacks/$stackName',
+  path: '/stacks/$stackName',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContainersContainerIdRoute = ContainersContainerIdRouteImport.update({
   id: '/containers/$containerId',
   path: '/containers/$containerId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StacksStackNameIndexRoute = StacksStackNameIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StacksStackNameRoute,
+} as any)
 const StacksStackNameEditRoute = StacksStackNameEditRouteImport.update({
-  id: '/stacks/$stackName/edit',
-  path: '/stacks/$stackName/edit',
-  getParentRoute: () => rootRouteImport,
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => StacksStackNameRoute,
 } as any)
 const ContainersContainerIdExecRoute =
   ContainersContainerIdExecRouteImport.update({
@@ -46,8 +58,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
   '/containers/$containerId': typeof ContainersContainerIdRoute
+  '/stacks/$stackName': typeof StacksStackNameRouteWithChildren
   '/containers/$containerId/exec': typeof ContainersContainerIdExecRoute
   '/stacks/$stackName/edit': typeof StacksStackNameEditRoute
+  '/stacks/$stackName/': typeof StacksStackNameIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -55,14 +69,17 @@ export interface FileRoutesByTo {
   '/containers/$containerId': typeof ContainersContainerIdRoute
   '/containers/$containerId/exec': typeof ContainersContainerIdExecRoute
   '/stacks/$stackName/edit': typeof StacksStackNameEditRoute
+  '/stacks/$stackName': typeof StacksStackNameIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
   '/containers/$containerId': typeof ContainersContainerIdRoute
+  '/stacks/$stackName': typeof StacksStackNameRouteWithChildren
   '/containers_/$containerId/exec': typeof ContainersContainerIdExecRoute
   '/stacks/$stackName/edit': typeof StacksStackNameEditRoute
+  '/stacks/$stackName/': typeof StacksStackNameIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -70,8 +87,10 @@ export interface FileRouteTypes {
     | '/'
     | '/settings'
     | '/containers/$containerId'
+    | '/stacks/$stackName'
     | '/containers/$containerId/exec'
     | '/stacks/$stackName/edit'
+    | '/stacks/$stackName/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -79,21 +98,24 @@ export interface FileRouteTypes {
     | '/containers/$containerId'
     | '/containers/$containerId/exec'
     | '/stacks/$stackName/edit'
+    | '/stacks/$stackName'
   id:
     | '__root__'
     | '/'
     | '/settings'
     | '/containers/$containerId'
+    | '/stacks/$stackName'
     | '/containers_/$containerId/exec'
     | '/stacks/$stackName/edit'
+    | '/stacks/$stackName/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SettingsRoute: typeof SettingsRoute
   ContainersContainerIdRoute: typeof ContainersContainerIdRoute
+  StacksStackNameRoute: typeof StacksStackNameRouteWithChildren
   ContainersContainerIdExecRoute: typeof ContainersContainerIdExecRoute
-  StacksStackNameEditRoute: typeof StacksStackNameEditRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -112,6 +134,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stacks/$stackName': {
+      id: '/stacks/$stackName'
+      path: '/stacks/$stackName'
+      fullPath: '/stacks/$stackName'
+      preLoaderRoute: typeof StacksStackNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/containers/$containerId': {
       id: '/containers/$containerId'
       path: '/containers/$containerId'
@@ -119,12 +148,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContainersContainerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stacks/$stackName/': {
+      id: '/stacks/$stackName/'
+      path: '/'
+      fullPath: '/stacks/$stackName/'
+      preLoaderRoute: typeof StacksStackNameIndexRouteImport
+      parentRoute: typeof StacksStackNameRoute
+    }
     '/stacks/$stackName/edit': {
       id: '/stacks/$stackName/edit'
-      path: '/stacks/$stackName/edit'
+      path: '/edit'
       fullPath: '/stacks/$stackName/edit'
       preLoaderRoute: typeof StacksStackNameEditRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof StacksStackNameRoute
     }
     '/containers_/$containerId/exec': {
       id: '/containers_/$containerId/exec'
@@ -136,12 +172,26 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface StacksStackNameRouteChildren {
+  StacksStackNameEditRoute: typeof StacksStackNameEditRoute
+  StacksStackNameIndexRoute: typeof StacksStackNameIndexRoute
+}
+
+const StacksStackNameRouteChildren: StacksStackNameRouteChildren = {
+  StacksStackNameEditRoute: StacksStackNameEditRoute,
+  StacksStackNameIndexRoute: StacksStackNameIndexRoute,
+}
+
+const StacksStackNameRouteWithChildren = StacksStackNameRoute._addFileChildren(
+  StacksStackNameRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SettingsRoute: SettingsRoute,
   ContainersContainerIdRoute: ContainersContainerIdRoute,
+  StacksStackNameRoute: StacksStackNameRouteWithChildren,
   ContainersContainerIdExecRoute: ContainersContainerIdExecRoute,
-  StacksStackNameEditRoute: StacksStackNameEditRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

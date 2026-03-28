@@ -1,11 +1,7 @@
 import type React from "react";
 import { cn } from "../lib/cn";
 
-export const Table = ({
-  className,
-  children,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => {
+export const Table = ({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) => {
   return (
     <div className={cn("blur-panel rounded-2xl overflow-hidden", className)} {...props}>
       <table className="w-full border-collapse">{children}</table>
@@ -33,7 +29,7 @@ export const TableHeaderCell = ({
   return (
     <th
       className={cn(
-        "px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-text-muted",
+        "px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-text-secondary",
         className,
       )}
       {...props}
@@ -61,10 +57,7 @@ export const TableRow = ({
   ...props
 }: React.HTMLAttributes<HTMLTableRowElement>) => {
   return (
-    <tr
-      className={cn("group transition-colors hover:bg-white/[0.02]", className)}
-      {...props}
-    >
+    <tr className={cn("group transition-colors hover:bg-white/[0.02]", className)} {...props}>
       {children}
     </tr>
   );

@@ -17,7 +17,7 @@ export const Breadcrumb = ({ items, className }: BreadcrumbProps) => {
   return (
     <nav
       className={cn(
-        "flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-text-muted",
+        "flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-secondary",
         className,
       )}
     >
@@ -26,7 +26,7 @@ export const Breadcrumb = ({ items, className }: BreadcrumbProps) => {
 
         return (
           <span key={item.label} className="flex items-center gap-2">
-            {index > 0 && <ChevronRight size={10} className="text-text-muted/40" />}
+            {index > 0 && <ChevronRight size={10} className="text-text-secondary/40" />}
             {item.to && !isLast ? (
               <Link
                 to={item.to}

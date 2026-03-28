@@ -65,7 +65,7 @@ export const Sidebar = () => {
           return (
             <div
               key={item.to}
-              className="group relative flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-xl text-text-muted/40 transition-all"
+              className="group relative flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-xl text-text-secondary/50 transition-all"
             >
               <item.icon size={20} />
               <Tooltip label={`${item.label} (coming soon)`} />

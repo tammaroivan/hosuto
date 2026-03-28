@@ -32,14 +32,12 @@ export const StatCard = ({
   return (
     <div className={cn("blur-panel rounded-2xl p-4 flex flex-col gap-2", className)}>
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+        <span className="text-xs font-bold uppercase tracking-wider text-text-secondary">
           {label}
         </span>
-        {icon && <span className="text-text-muted">{icon}</span>}
+        {icon && <span className="text-text-secondary">{icon}</span>}
       </div>
-      <span className={cn("text-2xl font-bold tracking-tight", valueColors[variant])}>
-        {value}
-      </span>
+      <span className={cn("text-2xl font-bold tracking-tight", valueColors[variant])}>{value}</span>
       {progress !== undefined && (
         <div className="h-1 rounded-full bg-surface overflow-hidden">
           <div

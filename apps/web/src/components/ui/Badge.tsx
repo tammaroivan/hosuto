@@ -34,7 +34,7 @@ export const Badge = ({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold uppercase",
         variantStyles[variant],
         className,
       )}
@@ -54,7 +54,7 @@ export const TagBadge = ({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded bg-surface border border-border/50 px-1.5 py-0.5 text-[9px] font-mono text-text-secondary",
+        "inline-flex items-center rounded bg-surface border border-border/50 px-1.5 py-0.5 text-xs font-mono text-text-secondary",
         className,
       )}
       {...props}

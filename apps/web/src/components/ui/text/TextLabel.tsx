@@ -8,7 +8,7 @@ export const TextLabel = ({
 }: React.HTMLAttributes<HTMLSpanElement>) => {
   return (
     <span
-      className={cn("text-xs font-bold uppercase tracking-wider text-text-muted", className)}
+      className={cn("text-xs font-bold uppercase tracking-wider text-text-secondary", className)}
       {...props}
     >
       {children}
