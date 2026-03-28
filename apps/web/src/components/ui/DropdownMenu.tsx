@@ -1,6 +1,7 @@
 import React from "react";
 import { MoreHorizontal } from "lucide-react";
 import { cn } from "../../lib/cn";
+import { useClickOutside } from "../../hooks/useClickOutside";
 
 interface DropdownMenuItem {
   label: string;
@@ -18,17 +19,9 @@ interface DropdownMenuProps {
 export const DropdownMenu = ({ items, className }: DropdownMenuProps) => {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
+  const close = React.useCallback(() => setOpen(false), []);
 
-  React.useEffect(() => {
-    const handler = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  useClickOutside(ref, close, open);
 
   return (
     <div ref={ref} className={cn("relative", className)}>

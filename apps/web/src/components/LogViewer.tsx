@@ -1,5 +1,5 @@
 import React from "react";
-import type { LogLine } from "../hooks/useContainerLogs";
+import type { LogLine } from "@hosuto/shared";
 import { formatLogTimestamp } from "../lib/format";
 
 export const LogViewer = ({ lines, isLoading }: { lines: LogLine[]; isLoading: boolean }) => {
@@ -26,35 +26,31 @@ export const LogViewer = ({ lines, isLoading }: { lines: LogLine[]; isLoading: b
   };
 
   if (isLoading) {
-    return <div className="p-4 font-mono text-xs text-text-muted">Loading logs...</div>;
+    return <div className="p-4 font-mono text-xs text-text-secondary">Loading logs...</div>;
   }
 
   if (lines.length === 0) {
-    return <div className="p-4 font-mono text-xs text-text-muted">No logs available</div>;
+    return <div className="p-4 font-mono text-xs text-text-secondary">No logs available</div>;
   }
 
   return (
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto font-mono text-xs leading-tight"
+      className="flex-1 overflow-y-auto font-mono text-xs leading-relaxed"
     >
-      <table className="w-full border-collapse">
-        <tbody>
-          {lines.map((line, i) => (
-            <tr key={i} className="group transition-colors hover:bg-surface/30">
-              <td className="select-none whitespace-nowrap border-r border-surface-hover px-3 py-0 text-right align-top text-text-muted">
-                {formatLogTimestamp(line.timestamp)}
-              </td>
-              <td
-                className={`whitespace-pre-wrap px-4 py-0 ${line.stream === "stderr" ? "text-accent-rose" : "text-text-primary"}`}
-              >
-                {line.text}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {lines.map((line, index) => (
+        <div key={index} className="flex gap-3 py-1 transition-colors hover:bg-surface/30">
+          <span className="shrink-0 select-none px-3 text-right text-text-secondary">
+            {formatLogTimestamp(line.timestamp)}
+          </span>
+          <span
+            className={`min-w-0 whitespace-pre-wrap ${line.stream === "stderr" ? "text-danger" : "text-text-primary"}`}
+          >
+            {line.text}
+          </span>
+        </div>
+      ))}
     </div>
   );
 };

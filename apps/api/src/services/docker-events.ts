@@ -1,4 +1,9 @@
 import type { WSContext } from "hono/ws";
+import type {
+  WSContainerStatusMessage,
+  WSStackActionMessage,
+  WSStackOutputMessage,
+} from "@hosuto/shared";
 import { docker } from "./docker-client";
 
 const clients = new Set<WSContext>();
@@ -22,49 +27,21 @@ export const broadcast = (message: string): void => {
   }
 };
 
-export interface ContainerStatusMessage {
-  type: "container:status";
-  payload: {
-    id: string;
-    name: string;
-    action: string;
-    stackName: string | null;
-  };
-}
-
-export interface StackActionMessage {
-  type: "stack:action";
-  payload: {
-    stackName: string;
-    action: string;
-    success: boolean;
-    error?: string;
-  };
-}
-
 export const broadcastStackAction = (
   stackName: string,
   action: string,
   success: boolean,
   error?: string,
 ): void => {
-  const message: StackActionMessage = {
+  const message: WSStackActionMessage = {
     type: "stack:action",
     payload: { stackName, action, success, error },
   };
   broadcast(JSON.stringify(message));
 };
 
-export interface StackOutputMessage {
-  type: "stack:output";
-  payload: {
-    stackName: string;
-    line: string;
-  };
-}
-
 export const broadcastStackOutput = (stackName: string, line: string): void => {
-  const message: StackOutputMessage = {
+  const message: WSStackOutputMessage = {
     type: "stack:output",
     payload: { stackName, line },
   };
@@ -80,8 +57,8 @@ export const broadcastStackUpdates = (stackName: string, status: { hasUpdates: b
   );
 };
 
-export const parseDockerEventChunk = (chunk: string): ContainerStatusMessage[] => {
-  const messages: ContainerStatusMessage[] = [];
+export const parseDockerEventChunk = (chunk: string): WSContainerStatusMessage[] => {
+  const messages: WSContainerStatusMessage[] = [];
   const lines = chunk.split("\n").filter(Boolean);
 
   for (const line of lines) {

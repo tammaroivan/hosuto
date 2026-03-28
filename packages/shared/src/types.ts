@@ -160,3 +160,54 @@ export interface AggregatedStats {
   };
   timestamp: string;
 }
+
+// WebSocket message types
+
+export interface LogLine {
+  stream: "stdout" | "stderr";
+  text: string;
+  timestamp: string;
+}
+
+export interface WSContainerStatusMessage {
+  type: "container:status";
+  payload: { id: string; name: string; action: string; stackName: string | null };
+}
+
+export interface WSStackOutputMessage {
+  type: "stack:output";
+  payload: { stackName: string; line: string };
+}
+
+export interface WSStackActionMessage {
+  type: "stack:action";
+  payload: { stackName: string; action: string; success: boolean; error?: string };
+}
+
+export interface WSStackUpdatesMessage {
+  type: "stack:updates";
+  payload: { stackName: string; hasUpdates: boolean };
+}
+
+export interface WSStatsMessage {
+  type: "stats";
+  payload: AggregatedStats;
+}
+
+export interface WSLogMessage {
+  type: "log";
+  payload: { containerId: string; lines: LogLine[] };
+}
+
+export interface WSPingMessage {
+  type: "ping";
+}
+
+export type WSMessage =
+  | WSContainerStatusMessage
+  | WSStackOutputMessage
+  | WSStackActionMessage
+  | WSStackUpdatesMessage
+  | WSStatsMessage
+  | WSLogMessage
+  | WSPingMessage;

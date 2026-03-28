@@ -38,7 +38,9 @@ export const containersRoute = new Hono()
       try {
         const logs = await getContainerLogs(containerId, parseInt(tail, 10));
         return ctx.json(logs);
-      } catch {
+      } catch (error) {
+        console.error("Failed to fetch logs:", error);
+
         return ctx.json({ error: "Failed to fetch logs" }, 500);
       }
     },
@@ -59,8 +61,11 @@ export const containersRoute = new Hono()
       const container = docker.getContainer(containerId);
       await container.start();
       return ctx.json({ ok: true });
-    } catch {
-      return ctx.json({ error: "Failed to start container" }, 500);
+    } catch (error) {
+      console.error("Failed to start container:", error);
+      const message = error instanceof Error ? error.message : "Failed to start container";
+
+      return ctx.json({ error: message }, 500);
     }
   })
   .post("/containers/:id/stop", async ctx => {
@@ -70,8 +75,11 @@ export const containersRoute = new Hono()
       const container = docker.getContainer(containerId);
       await container.stop();
       return ctx.json({ ok: true });
-    } catch {
-      return ctx.json({ error: "Failed to stop container" }, 500);
+    } catch (error) {
+      console.error("Failed to stop container:", error);
+      const message = error instanceof Error ? error.message : "Failed to stop container";
+
+      return ctx.json({ error: message }, 500);
     }
   })
   .post("/containers/:id/restart", async ctx => {
@@ -81,7 +89,10 @@ export const containersRoute = new Hono()
       const container = docker.getContainer(containerId);
       await container.restart();
       return ctx.json({ ok: true });
-    } catch {
-      return ctx.json({ error: "Failed to restart container" }, 500);
+    } catch (error) {
+      console.error("Failed to restart container:", error);
+      const message = error instanceof Error ? error.message : "Failed to restart container";
+
+      return ctx.json({ error: message }, 500);
     }
   });

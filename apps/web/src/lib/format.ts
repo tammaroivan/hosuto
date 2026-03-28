@@ -22,7 +22,21 @@ export const formatTimestamp = (iso: string): string => {
 };
 
 export const formatLogTimestamp = (iso: string): string => {
-  return formatTimestamp(iso);
+  const date = new Date(iso);
+
+  const day = date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
+  const time = date.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  return `${day} ${time}`;
 };
 
 export const formatUptime = (raw: string): string => {
@@ -54,10 +68,14 @@ export const formatUptime = (raw: string): string => {
 };
 
 export const formatMB = (bytes: number): string => {
-  if (bytes === 0) {return "0 MB";}
+  if (bytes === 0) {
+    return "0 MB";
+  }
 
   const mb = bytes / (1024 * 1024);
-  if (mb >= 1024) {return `${(mb / 1024).toFixed(1)} GB`;}
+  if (mb >= 1024) {
+    return `${(mb / 1024).toFixed(1)} GB`;
+  }
 
   return `${Math.round(mb)} MB`;
 };

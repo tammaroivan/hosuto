@@ -1,17 +1,14 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { LogLine } from "@hosuto/shared";
 import { api } from "../lib/api";
+import { wsManager } from "../lib/ws";
 
-export interface LogLine {
-  stream: "stdout" | "stderr";
-  text: string;
-  timestamp: string;
-}
+const MAX_LOG_LINES = 10_000;
 
 export const useContainerLogs = (containerId: string, tail = 200) => {
   const queryClient = useQueryClient();
   const [streamedLines, setStreamedLines] = React.useState<LogLine[]>([]);
-  const wsRef = React.useRef<WebSocket | null>(null);
 
   const initial = useQuery({
     queryKey: ["container-logs", containerId, tail],
@@ -22,53 +19,40 @@ export const useContainerLogs = (containerId: string, tail = 200) => {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to fetch logs");
+        return [];
       }
 
       return res.json() as Promise<LogLine[]>;
     },
+    retry: 1,
   });
 
   React.useEffect(() => {
-    const wsUrl = import.meta.env.DEV
-      ? "ws://localhost:3000/ws"
-      : `ws://${window.location.host}/ws`;
+    wsManager.send({ type: "subscribe:logs", containerId });
 
-    const socket = new WebSocket(wsUrl);
-    wsRef.current = socket;
+    const removeHandler = wsManager.onMessage(message => {
+      if (message.type === "log" && message.payload.containerId === containerId) {
+        setStreamedLines(prev => {
+          const combined = [...prev, ...message.payload.lines];
 
-    socket.onopen = () => {
-      socket.send(JSON.stringify({ type: "subscribe:logs", containerId }));
-    };
-
-    socket.onmessage = event => {
-      try {
-        const message = JSON.parse(event.data);
-
-        if (message.type === "log" && message.payload.containerId === containerId) {
-          setStreamedLines(prev => [...prev, ...message.payload.lines]);
-        }
-
-        // Resubscribe to logs after container restart
-        if (
-          message.type === "container:status" &&
-          message.payload.id === containerId &&
-          message.payload.action === "start"
-        ) {
-          socket.send(JSON.stringify({ type: "subscribe:logs", containerId }));
-        }
-      } catch (error) {
-        console.error("Failed to parse WebSocket message:", event.data, error);
+          return combined.length > MAX_LOG_LINES
+            ? combined.slice(combined.length - MAX_LOG_LINES)
+            : combined;
+        });
       }
-    };
+
+      if (
+        message.type === "container:status" &&
+        message.payload.id === containerId &&
+        message.payload.action === "start"
+      ) {
+        wsManager.send({ type: "subscribe:logs", containerId });
+      }
+    });
 
     return () => {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: "unsubscribe:logs" }));
-      }
-
-      socket.close();
-      wsRef.current = null;
+      wsManager.send({ type: "unsubscribe:logs" });
+      removeHandler();
       setStreamedLines([]);
     };
   }, [containerId]);

@@ -12,18 +12,26 @@ const ACTION_LABELS: Record<Action, string> = {
 
 export const useContainerAction = () => {
   return useMutation({
-    mutationFn: async ({ id, name, action }: { id: string; name: string; action: Action }) => {
+    mutationFn: async ({ id, action }: { id: string; name: string; action: Action }) => {
       const res = await api.containers[":id"][action].$post({
         param: { id },
       });
 
-      return { name, action, data: await res.json() };
+      if (!res.ok) {
+        const body = await res.json();
+        const errorMessage = "error" in body ? body.error : `Failed to ${action} container`;
+
+        throw new Error(errorMessage);
+      }
+
+      return res.json();
     },
-    onSuccess: ({ name, action }) => {
+    onSuccess: (_data, { name, action }) => {
       toast.success(`${ACTION_LABELS[action]} ${name}`);
     },
-    onError: (_error, { name, action }) => {
-      toast.error(`Failed to ${action} ${name}`);
+    onError: (error, { name, action }) => {
+      const message = error instanceof Error ? error.message : `Failed to ${action} ${name}`;
+      toast.error(message);
     },
   });
 };

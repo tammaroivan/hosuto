@@ -1,6 +1,6 @@
 import React from "react";
 import { X, Check, AlertTriangle, Loader2 } from "lucide-react";
-import type { DeployOutput as DeployOutputType } from "../hooks/useDockerEvents";
+import type { DeployOutput as DeployOutputType } from "../contexts/WebSocketContext";
 
 export const DeployOutput = ({
   output,

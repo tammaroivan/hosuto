@@ -3,10 +3,10 @@ import { Toaster } from "react-hot-toast";
 import { Sidebar } from "../components/sidebar";
 import { ErrorFallback } from "../components/ErrorFallback";
 import { DeployOutput } from "../components/DeployOutput";
-import { useDockerEvents } from "../hooks/useDockerEvents";
+import { useWebSocket } from "../hooks/useWebSocket";
 
 const RootLayout = () => {
-  const { deployOutput, clearDeployOutput } = useDockerEvents();
+  const { deployOutput, clearDeployOutput } = useWebSocket();
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg font-sans text-text-primary mesh-bg">
@@ -21,7 +21,9 @@ const RootLayout = () => {
             background: "var(--color-surface)",
             color: "var(--color-text-primary)",
             border: "1px solid var(--color-border)",
-            fontSize: "14px",
+            fontSize: "13px",
+            maxWidth: "420px",
+            wordBreak: "break-word",
           },
         }}
       />

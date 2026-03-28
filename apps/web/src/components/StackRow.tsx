@@ -19,6 +19,7 @@ import { useMutation } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { cn } from "../lib/cn";
 import { formatMB } from "../lib/format";
+import { useClickOutside } from "../hooks/useClickOutside";
 import { Text } from "./ui/text";
 import { ContainersTable } from "./ContainersTable";
 import toast from "react-hot-toast";
@@ -297,22 +298,8 @@ const OverflowMenu = ({
 }) => {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const handler = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  const close = () => setOpen(false);
+  const close = React.useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close, open);
 
   return (
     <div ref={ref} className="relative">

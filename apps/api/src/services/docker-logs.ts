@@ -1,11 +1,6 @@
 import type { Readable } from "node:stream";
+import type { LogLine } from "@hosuto/shared";
 import { docker } from "./docker-client";
-
-export interface LogLine {
-  stream: "stdout" | "stderr";
-  text: string;
-  timestamp: string;
-}
 
 /**
  * Parses a Docker multiplexed log buffer into structured log lines.

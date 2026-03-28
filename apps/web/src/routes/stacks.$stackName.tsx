@@ -15,6 +15,7 @@ import { useStackAction } from "../hooks/useStackAction";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { cn } from "../lib/cn";
+import { useClickOutside } from "../hooks/useClickOutside";
 import { Text } from "../components/ui/text";
 import { Breadcrumb } from "../components/Breadcrumb";
 import { TabBar } from "../components/TabBar";
@@ -128,8 +129,10 @@ const StackLayout = () => {
                 label="Up"
                 onClick={() => stackAction.mutate({ name: stackName, action: "up" })}
                 disabled={stackAction.isPending}
+                className="hover:border-success hover:text-success"
               >
-                <Play size={16} />
+                <Play size={14} />
+                Up
               </ActionBtn>
             ) : (
               <>
@@ -137,15 +140,19 @@ const StackLayout = () => {
                   label="Restart"
                   onClick={() => stackAction.mutate({ name: stackName, action: "restart" })}
                   disabled={stackAction.isPending}
+                  className="hover:border-primary hover:text-primary"
                 >
-                  <RefreshCw size={16} />
+                  <RefreshCw size={14} />
+                  Restart
                 </ActionBtn>
                 <ActionBtn
                   label="Pull"
                   onClick={() => stackAction.mutate({ name: stackName, action: "pull" })}
                   disabled={stackAction.isPending}
+                  className="hover:border-primary hover:text-primary"
                 >
-                  <Download size={16} />
+                  <Download size={14} />
+                  Pull
                 </ActionBtn>
               </>
             )}
@@ -186,11 +193,13 @@ const StackLayout = () => {
 
 const ActionBtn = ({
   label,
+  className,
   disabled,
   onClick,
   children,
 }: {
   label: string;
+  className?: string;
   disabled?: boolean;
   onClick: () => void;
   children: React.ReactNode;
@@ -199,7 +208,10 @@ const ActionBtn = ({
     title={label}
     disabled={disabled}
     onClick={onClick}
-    className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/12 bg-surface text-text-secondary transition-all hover:border-primary/50 hover:bg-white/5 hover:text-primary disabled:opacity-40"
+    className={cn(
+      "flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-surface px-3 text-xs font-bold text-text-secondary transition-all disabled:opacity-40",
+      className,
+    )}
   >
     {children}
   </button>
@@ -230,28 +242,14 @@ const OverflowMenu = ({
 }) => {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const handler = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  const close = () => setOpen(false);
+  const close = React.useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close, open);
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/12 bg-surface text-text-secondary transition-all hover:bg-surface-hover hover:text-white"
+        className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-surface text-text-secondary transition-all hover:bg-surface-hover hover:text-white"
       >
         <MoreHorizontal size={16} />
       </button>
@@ -259,7 +257,6 @@ const OverflowMenu = ({
         <div className="absolute right-0 top-full z-50 mt-2 w-44 overflow-hidden rounded-xl blur-panel py-2 shadow-2xl">
           {isStopped ? (
             <>
-              <OverflowItem icon={<Play size={14} />} label="Up Stack" onClick={close} />
               <OverflowItem
                 icon={<Download size={14} />}
                 label="Pull Images"
