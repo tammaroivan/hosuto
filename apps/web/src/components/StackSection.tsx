@@ -91,7 +91,15 @@ export const StackSection = ({ stack }: { stack: Stack }) => {
                   label="Update"
                   className="text-accent-cyan"
                   disabled={stackAction.isPending}
-                  onClick={() => stackAction.mutate({ name: stack.name, action: "update" })}
+                  onClick={() =>
+                    stackAction.mutate({
+                      name: stack.name,
+                      action: "update",
+                      services: stack.updates?.results
+                        .filter(result => result.updateAvailable)
+                        .map(result => result.service),
+                    })
+                  }
                 />
               ) : (
                 <ActionButton

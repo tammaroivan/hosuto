@@ -229,7 +229,15 @@ export const StackRow = ({
             onDown={handleDown}
             onPull={() => stackAction.mutate({ name: stack.name, action: "pull" })}
             onBuild={() => stackAction.mutate({ name: stack.name, action: "build-up" })}
-            onUpdate={() => stackAction.mutate({ name: stack.name, action: "update" })}
+            onUpdate={() =>
+              stackAction.mutate({
+                name: stack.name,
+                action: "update",
+                services: stack.updates?.results
+                  .filter(result => result.updateAvailable)
+                  .map(result => result.service),
+              })
+            }
             onCheckUpdates={() => triggerCheck.mutate()}
           />
         </div>

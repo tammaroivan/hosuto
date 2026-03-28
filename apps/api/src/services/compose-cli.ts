@@ -50,10 +50,12 @@ export const composePull = async (
   return runCompose(entrypoint, args);
 };
 
+const DOCKER_LAYER_ID_RE = /^\s*([0-9a-f]{12})\s/;
+
 export const runComposeStreaming = (
   entrypoint: string,
   args: string[],
-  onLine: (line: string) => void,
+  onLine: (line: string, key?: string) => void,
 ): Promise<ComposeResult> => {
   return new Promise(resolve => {
     const proc = spawn("docker", ["compose", "-f", entrypoint, ...args], {
@@ -65,8 +67,10 @@ export const runComposeStreaming = (
 
     const processChunk = (chunk: Buffer) => {
       const text = chunk.toString();
-      for (const line of text.split("\n").filter(Boolean)) {
-        onLine(line);
+      const segments = text.split(/[\r\n]+/).filter(Boolean);
+      for (const segment of segments) {
+        const match = segment.match(DOCKER_LAYER_ID_RE);
+        onLine(segment, match?.[1]);
       }
 
       return text;

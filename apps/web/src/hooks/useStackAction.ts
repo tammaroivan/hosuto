@@ -18,10 +18,26 @@ export const useStackAction = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ name, action }: { name: string; action: StackAction }) => {
-      const res = await api.stacks[":name"][action].$post({
-        param: { name },
-      });
+    mutationFn: async ({
+      name,
+      action,
+      services,
+    }: {
+      name: string;
+      action: StackAction;
+      services?: string[];
+    }) => {
+      let res;
+      if (action === "update") {
+        res = await api.stacks[":name"].update.$post({
+          param: { name },
+          json: { services: services ?? [] },
+        });
+      } else {
+        res = await api.stacks[":name"][action].$post({
+          param: { name },
+        });
+      }
 
       return { name, action, data: await res.json() };
     },

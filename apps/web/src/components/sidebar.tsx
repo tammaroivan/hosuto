@@ -24,7 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/notifications", label: "Notifications", icon: Bell, enabled: false },
   { to: "/network", label: "Network", icon: Network, enabled: false },
   { to: "/volumes", label: "Volumes", icon: Database, enabled: false },
-  { to: "/updates", label: "Updates", icon: RefreshCw, enabled: false },
+  { to: "/updates", label: "Updates", icon: RefreshCw, enabled: true },
   { to: "/activity", label: "Activity", icon: Activity, enabled: false },
 ];
 

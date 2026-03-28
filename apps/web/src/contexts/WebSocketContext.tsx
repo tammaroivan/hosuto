@@ -6,9 +6,14 @@ import { wsManager } from "../lib/ws";
 
 export type ConnectionStatus = "connected" | "connecting" | "disconnected";
 
+export interface DeployLine {
+  text: string;
+  key?: string;
+}
+
 export interface DeployOutput {
   stackName: string;
-  lines: string[];
+  lines: DeployLine[];
   complete: boolean;
   success?: boolean;
 }
@@ -81,19 +86,34 @@ export const WebSocketProvider = ({ children }: { children: React.ReactNode }) =
 
     const removeMessageHandler = wsManager.onMessage(message => {
       switch (message.type) {
-        case "stack:output":
+        case "stack:output": {
+          const { stackName: outputStack, line, key } = message.payload;
+          const newLine: DeployLine = { text: line, ...(key && { key }) };
+
           setDeployOutput(prev => {
-            if (prev && prev.stackName === message.payload.stackName) {
-              return { ...prev, lines: [...prev.lines, message.payload.line] };
+            if (prev && prev.stackName === outputStack) {
+              if (key) {
+                let idx = -1;
+                for (let i = prev.lines.length - 1; i >= 0; i--) {
+                  if (prev.lines[i].key === key) {
+                    idx = i;
+                    break;
+                  }
+                }
+                if (idx !== -1) {
+                  const lines = [...prev.lines];
+                  lines[idx] = newLine;
+                  return { ...prev, lines };
+                }
+              }
+
+              return { ...prev, lines: [...prev.lines, newLine] };
             }
 
-            return {
-              stackName: message.payload.stackName,
-              lines: [message.payload.line],
-              complete: false,
-            };
+            return { stackName: outputStack, lines: [newLine], complete: false };
           });
           break;
+        }
 
         case "stack:action":
           setDeployOutput(prev => {

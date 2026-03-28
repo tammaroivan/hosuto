@@ -165,7 +165,15 @@ const StackLayout = () => {
               onDown={handleDown}
               onPull={() => stackAction.mutate({ name: stackName, action: "pull" })}
               onBuild={() => stackAction.mutate({ name: stackName, action: "build-up" })}
-              onUpdate={() => stackAction.mutate({ name: stackName, action: "update" })}
+              onUpdate={() =>
+                stackAction.mutate({
+                  name: stackName,
+                  action: "update",
+                  services: stack.updates?.results
+                    .filter(result => result.updateAvailable)
+                    .map(result => result.service),
+                })
+              }
               onCheckUpdates={() => triggerCheck.mutate()}
             />
           </div>

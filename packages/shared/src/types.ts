@@ -176,7 +176,7 @@ export interface WSContainerStatusMessage {
 
 export interface WSStackOutputMessage {
   type: "stack:output";
-  payload: { stackName: string; line: string };
+  payload: { stackName: string; line: string; key?: string };
 }
 
 export interface WSStackActionMessage {

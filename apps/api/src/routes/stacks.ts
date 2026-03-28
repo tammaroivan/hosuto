@@ -36,7 +36,9 @@ const runStackAction = (ctx: Context, action: string, composeArgs: string[]) => 
     return ctx.json({ error: "Stack not found" }, 404);
   }
 
-  runComposeStreaming(stack.entrypoint, composeArgs, line => broadcastStackOutput(name, line))
+  runComposeStreaming(stack.entrypoint, composeArgs, (line, key) =>
+    broadcastStackOutput(name, line, key),
+  )
     .then(result => {
       broadcastStackAction(name, action, result.success, result.stderr || undefined);
     })
@@ -156,38 +158,50 @@ export const stacksRoute = new Hono()
 
     return ctx.json({ accepted: true }, 202);
   })
-  .post("/stacks/:name/update", ctx => {
-    const name = ctx.req.param("name");
-    const stack = findStack(name);
-    if (!stack) {
-      return ctx.json({ error: "Stack not found" }, 404);
-    }
+  .post(
+    "/stacks/:name/update",
+    validator("json", (value, ctx) => {
+      const services = value?.services;
+      if (services !== undefined && !Array.isArray(services)) {
+        return ctx.json({ error: "services must be an array of strings" }, 400);
+      }
 
-    const onLine = (line: string) => broadcastStackOutput(name, line);
+      return { services: (services as string[] | undefined) ?? [] };
+    }),
+    ctx => {
+      const name = ctx.req.param("name");
+      const { services } = ctx.req.valid("json");
+      const stack = findStack(name);
+      if (!stack) {
+        return ctx.json({ error: "Stack not found" }, 404);
+      }
 
-    runComposeStreaming(stack.entrypoint, ["pull"], onLine)
-      .then(pullResult => {
-        if (!pullResult.success) {
-          throw new Error(pullResult.stderr || "Pull failed");
-        }
+      const onLine = (line: string, key?: string) => broadcastStackOutput(name, line, key);
 
-        return runComposeStreaming(stack.entrypoint, ["up", "-d"], onLine);
-      })
-      .then(upResult => {
-        broadcastStackAction(name, "update", upResult.success, upResult.stderr || undefined);
-        if (upResult.success) {
-          setCachedUpdates(name, {
-            stackName: name,
-            results: [],
-            lastChecked: new Date().toISOString(),
-            hasUpdates: false,
-          });
-          broadcastStackUpdates(name, { hasUpdates: false });
-        }
-      })
-      .catch(error => {
-        broadcastStackAction(name, "update", false, String(error));
-      });
+      runComposeStreaming(stack.entrypoint, ["pull", ...services], onLine)
+        .then(pullResult => {
+          if (!pullResult.success) {
+            throw new Error(pullResult.stderr || "Pull failed");
+          }
 
-    return ctx.json({ accepted: true }, 202);
-  });
+          return runComposeStreaming(stack.entrypoint, ["up", "-d", ...services], onLine);
+        })
+        .then(upResult => {
+          broadcastStackAction(name, "update", upResult.success, upResult.stderr || undefined);
+          if (upResult.success) {
+            setCachedUpdates(name, {
+              stackName: name,
+              results: [],
+              lastChecked: new Date().toISOString(),
+              hasUpdates: false,
+            });
+            broadcastStackUpdates(name, { hasUpdates: false });
+          }
+        })
+        .catch(error => {
+          broadcastStackAction(name, "update", false, String(error));
+        });
+
+      return ctx.json({ accepted: true }, 202);
+    },
+  );

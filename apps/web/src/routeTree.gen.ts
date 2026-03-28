@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UpdatesRouteImport } from './routes/updates'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StacksStackNameRouteImport } from './routes/stacks.$stackName'
@@ -17,6 +18,11 @@ import { Route as StacksStackNameIndexRouteImport } from './routes/stacks.$stack
 import { Route as StacksStackNameEditRouteImport } from './routes/stacks.$stackName.edit'
 import { Route as ContainersContainerIdExecRouteImport } from './routes/containers_.$containerId.exec'
 
+const UpdatesRoute = UpdatesRouteImport.update({
+  id: '/updates',
+  path: '/updates',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -57,6 +63,7 @@ const ContainersContainerIdExecRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
+  '/updates': typeof UpdatesRoute
   '/containers/$containerId': typeof ContainersContainerIdRoute
   '/stacks/$stackName': typeof StacksStackNameRouteWithChildren
   '/containers/$containerId/exec': typeof ContainersContainerIdExecRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
+  '/updates': typeof UpdatesRoute
   '/containers/$containerId': typeof ContainersContainerIdRoute
   '/containers/$containerId/exec': typeof ContainersContainerIdExecRoute
   '/stacks/$stackName/edit': typeof StacksStackNameEditRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
+  '/updates': typeof UpdatesRoute
   '/containers/$containerId': typeof ContainersContainerIdRoute
   '/stacks/$stackName': typeof StacksStackNameRouteWithChildren
   '/containers_/$containerId/exec': typeof ContainersContainerIdExecRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/settings'
+    | '/updates'
     | '/containers/$containerId'
     | '/stacks/$stackName'
     | '/containers/$containerId/exec'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/settings'
+    | '/updates'
     | '/containers/$containerId'
     | '/containers/$containerId/exec'
     | '/stacks/$stackName/edit'
@@ -103,6 +114,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/settings'
+    | '/updates'
     | '/containers/$containerId'
     | '/stacks/$stackName'
     | '/containers_/$containerId/exec'
@@ -113,6 +125,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SettingsRoute: typeof SettingsRoute
+  UpdatesRoute: typeof UpdatesRoute
   ContainersContainerIdRoute: typeof ContainersContainerIdRoute
   StacksStackNameRoute: typeof StacksStackNameRouteWithChildren
   ContainersContainerIdExecRoute: typeof ContainersContainerIdExecRoute
@@ -120,6 +133,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/updates': {
+      id: '/updates'
+      path: '/updates'
+      fullPath: '/updates'
+      preLoaderRoute: typeof UpdatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -189,6 +209,7 @@ const StacksStackNameRouteWithChildren = StacksStackNameRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SettingsRoute: SettingsRoute,
+  UpdatesRoute: UpdatesRoute,
   ContainersContainerIdRoute: ContainersContainerIdRoute,
   StacksStackNameRoute: StacksStackNameRouteWithChildren,
   ContainersContainerIdExecRoute: ContainersContainerIdExecRoute,

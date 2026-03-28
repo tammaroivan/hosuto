@@ -40,10 +40,10 @@ export const broadcastStackAction = (
   broadcast(JSON.stringify(message));
 };
 
-export const broadcastStackOutput = (stackName: string, line: string): void => {
+export const broadcastStackOutput = (stackName: string, line: string, key?: string): void => {
   const message: WSStackOutputMessage = {
     type: "stack:output",
-    payload: { stackName, line },
+    payload: { stackName, line, ...(key && { key }) },
   };
   broadcast(JSON.stringify(message));
 };

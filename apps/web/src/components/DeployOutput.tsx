@@ -18,7 +18,7 @@ export const DeployOutput = ({
   }, [output.lines.length]);
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-bg">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-bg z-50 ml-14">
       <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-2">
         <div className="flex items-center gap-2">
           {output.complete ? (
@@ -45,7 +45,7 @@ export const DeployOutput = ({
       <div ref={scrollRef} className="max-h-48 overflow-y-auto px-4 py-2">
         {output.lines.map((line, index) => (
           <div key={index} className="font-mono text-xs leading-5 text-text-muted">
-            {line}
+            {line.text}
           </div>
         ))}
         {output.lines.length === 0 && (
