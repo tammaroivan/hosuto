@@ -98,3 +98,17 @@
 .active-glow {
   border: 1px solid rgba(6, 246, 212, 0.4);
 }
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}

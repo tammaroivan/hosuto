@@ -34,11 +34,11 @@ describe("formatLogTimestamp", () => {
     vi.useRealTimers();
   });
 
-  it("delegates to formatTimestamp", () => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 15, 30);
-    const result = formatLogTimestamp(today.toISOString());
-    expect(result).not.toMatch(/Mar|Jan|Feb/);
+  it("always includes full date and time", () => {
+    const result = formatLogTimestamp("2026-03-23T09:15:30Z");
+    expect(result).toMatch(/Mar/);
+    expect(result).toMatch(/23/);
+    expect(result).toMatch(/2026/);
   });
 });
 

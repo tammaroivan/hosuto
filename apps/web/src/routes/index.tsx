@@ -7,6 +7,7 @@ import { CommandBar } from "../components/CommandBar";
 import { MetricsStrip } from "../components/MetricsStrip";
 import { StackRow } from "../components/StackRow";
 import { CreateStackDialog } from "../components/CreateStackDialog";
+import { EmptyState } from "../components/EmptyState";
 import { Text } from "../components/ui/text";
 
 const Dashboard = () => {
@@ -94,9 +95,7 @@ const Dashboard = () => {
           </Text>
         )}
         {stacks.data && stacks.data.length === 0 && !stacks.isError && (
-          <Text as="p" color="secondary">
-            No stacks found. Mount your compose files directory.
-          </Text>
+          <EmptyState onCreateStack={() => setCreateOpen(true)} />
         )}
 
         {filteredStacks.map(stack => (
