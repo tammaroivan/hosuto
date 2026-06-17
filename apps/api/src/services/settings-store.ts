@@ -13,7 +13,8 @@ const DEFAULTS: Settings = {
 
 const getSettingsPath = (): string => {
   const dataDir =
-    process.env.DATA_DIR || (process.env.NODE_ENV === "production" ? DEFAULT_DATA_DIR : "./data");
+    process.env.DATA_DIR ||
+    (process.env["NODE_ENV"] === "production" ? DEFAULT_DATA_DIR : "./data");
 
   return join(dataDir, "settings.json");
 };
