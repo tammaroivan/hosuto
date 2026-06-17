@@ -122,6 +122,20 @@ Every pull request runs lint, type-check, tests, and a Docker image build via Gi
 bun run lint && bun run typecheck && bun test
 ```
 
+### Previewing unreleased builds
+
+To preview the current `main` without cutting a release, every push to `main` publishes a rolling `ghcr.io/tammaroivan/hosuto:edge` image (and an immutable `:sha-<commit>` tag):
+
+```bash
+docker pull ghcr.io/tammaroivan/hosuto:edge
+```
+
+`:edge` always points at the newest `main` build and reports `edge-<commit>` at `/api/health`. It is built for `linux/amd64` only. To preview a local working copy on your own architecture, build it directly:
+
+```bash
+docker build -t hosuto:dev --build-arg VERSION="$(git rev-parse --short HEAD)" .
+```
+
 ### Tech Stack
 
 Bun + Hono backend, React + Vite + TanStack Router frontend, Monaco editor, xterm.js terminal, Tailwind CSS v4, end-to-end type safety via Hono RPC, Turborepo monorepo.
