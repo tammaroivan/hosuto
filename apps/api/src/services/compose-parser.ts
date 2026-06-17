@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join, relative, isAbsolute } from "node:path";
 import type { ComposeFile } from "@hosuto/shared";
 
-interface ParsedCompose {
+export interface ParsedCompose {
   name?: string;
   services: string[];
   includes: IncludeEntry[];
@@ -12,7 +12,7 @@ interface ParsedCompose {
   rawContent: string;
 }
 
-interface IncludeEntry {
+export interface IncludeEntry {
   path: string;
   envFile?: string;
   projectDirectory?: string;

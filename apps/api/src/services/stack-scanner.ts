@@ -1,6 +1,8 @@
 import { readdirSync, existsSync } from "node:fs";
-import { resolve, join, dirname, basename } from "node:path";
+import { resolve, join, dirname } from "node:path";
 import { parseComposeFile, resolveIncludes } from "./compose-parser";
+import { deriveName, selectStructure } from "./stack-structures";
+import type { StructureContext } from "./stack-structures";
 import type { Stack } from "@hosuto/shared";
 
 const COMPOSE_FILENAMES = [
@@ -88,41 +90,35 @@ export const scanStacksDirectory = (stacksDir: string): Stack[] => {
       continue;
     }
 
-    const files = resolveIncludes(candidate.path, absoluteDir);
-    const parsed = parseComposeFile(candidate.path);
-
-    const name = parsed.name || deriveStackName(candidate.dir, absoluteDir);
-    const hasBuildDirectives = files.some(file => {
-      const fileParsed = file.path === absolutePath ? parsed : parseComposeFile(file.path);
-      return fileParsed.hasBuild;
-    });
-
-    stacks.push({
-      name,
+    const context: StructureContext = {
       entrypoint: absolutePath,
-      files,
-      containers: [],
-      status: { state: "stopped", running: 0, expected: 0 },
-      hasBuildDirectives,
-      updates: null,
-    });
+      rootDir: absoluteDir,
+      parsed: parseComposeFile(absolutePath),
+      parse: parseComposeFile,
+      resolveIncludes,
+      deriveName,
+    };
+
+    stacks.push(...selectStructure(context).build(context));
   }
 
-  return stacks.sort((left, right) => left.name.localeCompare(right.name));
+  return ensureUniqueNames(stacks).sort((left, right) => left.name.localeCompare(right.name));
 };
 
 /**
- * Derives the stack name from the given compose directory and stacks directory.
- * If the directories are the same, returns the basename of the stacks directory.
- * Otherwise, returns the basename of the compose directory.
+ * Disambiguates stacks that resolved to the same display name (e.g. two `compose.yml`
+ * files in directories of the same name) by appending a numeric suffix.
  */
-const deriveStackName = (composeDir: string, stacksDir: string): string => {
-  const resolved = resolve(composeDir);
-  const stacksResolved = resolve(stacksDir);
+const ensureUniqueNames = (stacks: Stack[]): Stack[] => {
+  const seen = new Map<string, number>();
 
-  if (resolved === stacksResolved) {
-    return basename(stacksResolved);
+  for (const stack of stacks) {
+    const count = seen.get(stack.name) ?? 0;
+    seen.set(stack.name, count + 1);
+    if (count > 0) {
+      stack.name = `${stack.name}-${count + 1}`;
+    }
   }
 
-  return basename(resolved);
+  return stacks;
 };

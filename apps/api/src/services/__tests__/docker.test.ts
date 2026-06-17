@@ -33,11 +33,28 @@ const makeStack = (
   state: "running" | "partial" | "stopped" = "stopped",
 ) => ({
   name,
+  entrypoint: `/stacks/${name}/docker-compose.yml`,
   files: [{ services }] as ComposeFile[],
   containers: [] as Container[],
   status: { state, running: 0, expected: services.length } as StackStatus,
   hasBuildDirectives: false,
   updates: null,
+  serviceScope: null as string[] | null,
+});
+
+const makeScopedStack = (
+  name: string,
+  services: string[],
+  entrypoint = "/stacks/docker-compose.yml",
+) => ({
+  name,
+  entrypoint,
+  files: [{ services }] as ComposeFile[],
+  containers: [] as Container[],
+  status: { state: "stopped", running: 0, expected: services.length } as StackStatus,
+  hasBuildDirectives: false,
+  updates: null,
+  serviceScope: services as string[] | null,
 });
 
 describe("mapStatus", () => {
@@ -301,5 +318,60 @@ describe("matchContainersToStacks", () => {
     matchContainersToStacks(stacks, containers);
 
     expect(stacks[0].status).toEqual({ state: "partial", running: 1, expected: 3 });
+  });
+});
+
+describe("matchContainersToStacks (include slices)", () => {
+  it("matches containers to slices by service, even when the project differs from the name", () => {
+    const stacks = [
+      makeScopedStack("web", ["frontend", "api"]),
+      makeScopedStack("data", ["db", "cache"]),
+    ];
+    const containers = [
+      makeContainer({ id: "1", name: "frontend", stackName: "proj", serviceName: "frontend" }),
+      makeContainer({ id: "2", name: "api", stackName: "proj", serviceName: "api" }),
+      makeContainer({ id: "3", name: "db", stackName: "proj", serviceName: "db" }),
+      makeContainer({
+        id: "4",
+        name: "cache",
+        stackName: "proj",
+        serviceName: "cache",
+        state: "exited",
+      }),
+    ];
+
+    matchContainersToStacks(stacks, containers);
+
+    const web = stacks.find(stack => stack.name === "web")!;
+    const data = stacks.find(stack => stack.name === "data")!;
+    expect(web.containers.map(container => container.serviceName).sort()).toEqual([
+      "api",
+      "frontend",
+    ]);
+    expect(web.status).toEqual({ state: "running", running: 2, expected: 2 });
+    expect(data.status).toEqual({ state: "partial", running: 1, expected: 2 });
+  });
+
+  it("creates not_created placeholders for missing services in a slice", () => {
+    const stacks = [makeScopedStack("web", ["frontend", "api"])];
+    const containers = [
+      makeContainer({ id: "1", name: "frontend", stackName: "proj", serviceName: "frontend" }),
+    ];
+
+    matchContainersToStacks(stacks, containers);
+
+    expect(stacks[0].containers).toHaveLength(2);
+    const missing = stacks[0].containers.find(container => container.serviceName === "api")!;
+    expect(missing.state).toBe("not_created");
+    expect(stacks[0].status).toEqual({ state: "partial", running: 1, expected: 2 });
+  });
+
+  it("marks a slice stopped when none of its services are running", () => {
+    const stacks = [makeScopedStack("web", ["frontend", "api"])];
+
+    matchContainersToStacks(stacks, []);
+
+    expect(stacks[0].status).toEqual({ state: "stopped", running: 0, expected: 2 });
+    expect(stacks[0].containers.every(container => container.state === "not_created")).toBe(true);
   });
 });

@@ -87,7 +87,9 @@ describe("GET /api/stacks", () => {
   });
 
   it("sets status to partial when some containers are stopped", async () => {
-    mockScan.mockReturnValue([makeStack({ files: [makeComposeFile({ services: ["web", "db"] })] })]);
+    mockScan.mockReturnValue([
+      makeStack({ files: [makeComposeFile({ services: ["web", "db"] })] }),
+    ]);
     mockDocker.listContainers.mockResolvedValue([
       makeContainerInfo({
         Id: "c1",
@@ -183,7 +185,12 @@ describe("POST /api/stacks/:name/up", () => {
       expect.any(Function),
     );
     await vi.waitFor(() =>
-      expect(mockEvents.broadcastStackAction).toHaveBeenCalledWith("mystack", "up", true, undefined),
+      expect(mockEvents.broadcastStackAction).toHaveBeenCalledWith(
+        "mystack",
+        "up",
+        true,
+        undefined,
+      ),
     );
   });
 
@@ -408,6 +415,43 @@ describe("POST /api/stacks/:name/pull", () => {
     expect(mockCompose.runComposeStreaming).toHaveBeenCalledWith(
       "/stacks/media/compose.yml",
       ["pull"],
+      expect.any(Function),
+    );
+  });
+});
+
+describe("POST /api/stacks/:name (scoped slice actions)", () => {
+  const scopedStack = () =>
+    makeStack({
+      name: "web",
+      entrypoint: "/stacks/docker-compose.yml",
+      serviceScope: ["frontend", "api"],
+    });
+
+  it("scopes up to the slice's services on the root entrypoint", async () => {
+    mockScan.mockReturnValue([scopedStack()]);
+    mockCompose.runComposeStreaming.mockResolvedValue({ success: true, stdout: "", stderr: "" });
+
+    const res = await app.request("/api/stacks/web/up", { method: "POST" });
+
+    expect(res.status).toBe(202);
+    expect(mockCompose.runComposeStreaming).toHaveBeenCalledWith(
+      "/stacks/docker-compose.yml",
+      ["up", "-d", "frontend", "api"],
+      expect.any(Function),
+    );
+  });
+
+  it("turns a scoped down into rm -s -f so the shared project survives", async () => {
+    mockScan.mockReturnValue([scopedStack()]);
+    mockCompose.runComposeStreaming.mockResolvedValue({ success: true, stdout: "", stderr: "" });
+
+    const res = await app.request("/api/stacks/web/down", { method: "POST" });
+
+    expect(res.status).toBe(202);
+    expect(mockCompose.runComposeStreaming).toHaveBeenCalledWith(
+      "/stacks/docker-compose.yml",
+      ["rm", "-s", "-f", "frontend", "api"],
       expect.any(Function),
     );
   });

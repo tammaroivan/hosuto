@@ -247,6 +247,145 @@ describe("scanStacksDirectory", () => {
     expect(names).toContain("gaming");
   });
 
+  it("splits a pure include aggregator into one stack per include", () => {
+    writeFixture(
+      "docker-compose.web.yml",
+      `
+        services:
+          frontend:
+            image: nginx
+          api:
+            image: node
+      `,
+    );
+    writeFixture(
+      "docker-compose.data.yml",
+      `
+        services:
+          db:
+            image: postgres
+          cache:
+            image: redis
+      `,
+    );
+    writeFixture(
+      "docker-compose.yml",
+      `
+        networks:
+          shared: {}
+        include:
+          - docker-compose.web.yml
+          - docker-compose.data.yml
+      `,
+    );
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+    const root = join(TEST_DIR, "docker-compose.yml");
+
+    expect(stacks.map(stack => stack.name)).toEqual(["data", "web"]);
+
+    const web = stacks.find(stack => stack.name === "web")!;
+    expect(web.entrypoint).toBe(root);
+    expect(web.serviceScope?.sort()).toEqual(["api", "frontend"]);
+
+    const data = stacks.find(stack => stack.name === "data")!;
+    expect(data.entrypoint).toBe(root);
+    expect(data.serviceScope?.sort()).toEqual(["cache", "db"]);
+  });
+
+  it("rolls nested includes into the parent slice's services", () => {
+    writeFixture(
+      "app/extra.yml",
+      `
+        services:
+          sidecar:
+            image: alpine
+      `,
+    );
+    writeFixture(
+      "docker-compose.app.yml",
+      `
+        include:
+          - app/extra.yml
+        services:
+          main:
+            image: alpine
+      `,
+    );
+    writeFixture(
+      "docker-compose.yml",
+      `
+        include:
+          - docker-compose.app.yml
+      `,
+    );
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+
+    expect(stacks).toHaveLength(1);
+    expect(stacks[0].name).toBe("app");
+    expect(stacks[0].serviceScope?.sort()).toEqual(["main", "sidecar"]);
+  });
+
+  it("keeps a mixed root (own services + includes) as a single stack", () => {
+    writeFixture(
+      "docker-compose.web.yml",
+      `
+        services:
+          frontend:
+            image: nginx
+      `,
+    );
+    writeFixture(
+      "docker-compose.yml",
+      `
+        include:
+          - docker-compose.web.yml
+        services:
+          proxy:
+            image: traefik
+      `,
+    );
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+
+    expect(stacks).toHaveLength(1);
+    expect(stacks[0].serviceScope).toBeNull();
+  });
+
+  it("does not let a slice absorb sibling slices or itself", () => {
+    writeFixture(
+      "docker-compose.web.yml",
+      `
+        services:
+          frontend:
+            image: nginx
+      `,
+    );
+    writeFixture(
+      "docker-compose.dup.yml",
+      `
+        include:
+          - docker-compose.web.yml
+          - docker-compose.dup.yml
+      `,
+    );
+    writeFixture(
+      "docker-compose.yml",
+      `
+        include:
+          - docker-compose.web.yml
+          - docker-compose.dup.yml
+      `,
+    );
+
+    const stacks = scanStacksDirectory(TEST_DIR);
+
+    // "web" stays a clean single-service slice; "dup" owns no services and is dropped.
+    expect(stacks.map(stack => stack.name)).toEqual(["web"]);
+    expect(stacks[0].serviceScope).toEqual(["frontend"]);
+  });
+
   it("sets containers to empty array and status to stopped", () => {
     writeFixture("test/docker-compose.yml", "services:\n  a:\n    image: alpine");
 

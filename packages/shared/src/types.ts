@@ -44,13 +44,22 @@ export interface StackStatus {
 }
 
 export interface Stack {
+  /** Display name; the compose project name for an independent stack. */
   name: string;
+  /** Compose file actions run against (the root file for a scoped slice). */
   entrypoint: string;
+  /** The entrypoint and every file it includes. */
   files: ComposeFile[];
+  /** Matched containers plus placeholders for not-yet-created services. */
   containers: Container[];
+  /** Aggregate running/expected state. */
   status: StackStatus;
+  /** Whether any service declares a `build:`. */
   hasBuildDirectives: boolean;
+  /** Cached image-update status, or null if never checked. */
   updates: StackUpdateStatus | null;
+  /** Services owned by this slice of a shared `include:` project, or null if standalone. */
+  serviceScope: string[] | null;
 }
 
 export interface ComposeFile {

@@ -88,6 +88,9 @@ Hosuto handles real-world Docker Compose layouts:
 - Override files (`compose.override.yml`)
 - `build:` directives with Build button in the UI
 - Nested directory structures (configurable scan depth)
+- Aggregator roots that `include:` per-domain files, surfaced as one stack per include
+
+Layout detection is pluggable — see [stack structures](apps/api/src/services/stack-structures/README.md) to propose a new one.
 
 ## Configuration
 

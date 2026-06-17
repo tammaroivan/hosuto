@@ -25,7 +25,34 @@ const findStack = (name: string | undefined) => {
   return stacks.find(stack => stack.name === name) ?? null;
 };
 
-const runStackAction = (ctx: Context, action: string, composeArgs: string[]) => {
+const BASE_ARGS = {
+  up: ["up", "-d"],
+  down: ["down"],
+  restart: ["restart"],
+  pull: ["pull"],
+  build: ["build"],
+  "build-up": ["up", "-d", "--build"],
+} satisfies Record<string, string[]>;
+
+type StackAction = keyof typeof BASE_ARGS;
+
+/**
+ * Compose args for an action. A scoped slice appends its services; a scoped `down`
+ * becomes `rm -s -f <services>` so the shared project survives.
+ */
+const buildComposeArgs = (action: StackAction, serviceScope: string[] | null): string[] => {
+  if (!serviceScope || serviceScope.length === 0) {
+    return [...BASE_ARGS[action]];
+  }
+
+  if (action === "down") {
+    return ["rm", "-s", "-f", ...serviceScope];
+  }
+
+  return [...BASE_ARGS[action], ...serviceScope];
+};
+
+const runStackAction = (ctx: Context, action: StackAction) => {
   const name = ctx.req.param("name");
   if (!name) {
     return ctx.json({ error: "Stack name is required" }, 400);
@@ -35,6 +62,8 @@ const runStackAction = (ctx: Context, action: string, composeArgs: string[]) => 
   if (!stack) {
     return ctx.json({ error: "Stack not found" }, 404);
   }
+
+  const composeArgs = buildComposeArgs(action, stack.serviceScope);
 
   runComposeStreaming(stack.entrypoint, composeArgs, (line, key) =>
     broadcastStackOutput(name, line, key),
@@ -79,6 +108,7 @@ export const stacksRoute = new Hono()
           ),
           hasBuildDirectives: false,
           updates: null,
+          serviceScope: null,
         });
       }
 
@@ -116,12 +146,12 @@ export const stacksRoute = new Hono()
       }
     },
   )
-  .post("/stacks/:name/up", ctx => runStackAction(ctx, "up", ["up", "-d"]))
-  .post("/stacks/:name/down", ctx => runStackAction(ctx, "down", ["down"]))
-  .post("/stacks/:name/restart", ctx => runStackAction(ctx, "restart", ["restart"]))
-  .post("/stacks/:name/pull", ctx => runStackAction(ctx, "pull", ["pull"]))
-  .post("/stacks/:name/build", ctx => runStackAction(ctx, "build", ["build"]))
-  .post("/stacks/:name/build-up", ctx => runStackAction(ctx, "build-up", ["up", "-d", "--build"]))
+  .post("/stacks/:name/up", ctx => runStackAction(ctx, "up"))
+  .post("/stacks/:name/down", ctx => runStackAction(ctx, "down"))
+  .post("/stacks/:name/restart", ctx => runStackAction(ctx, "restart"))
+  .post("/stacks/:name/pull", ctx => runStackAction(ctx, "pull"))
+  .post("/stacks/:name/build", ctx => runStackAction(ctx, "build"))
+  .post("/stacks/:name/build-up", ctx => runStackAction(ctx, "build-up"))
   .get("/stacks/:name/updates", ctx => {
     const name = ctx.req.param("name") ?? "";
     const cached = getCachedUpdates(name);
@@ -178,13 +208,16 @@ export const stacksRoute = new Hono()
 
       const onLine = (line: string, key?: string) => broadcastStackOutput(name, line, key);
 
-      runComposeStreaming(stack.entrypoint, ["pull", ...services], onLine)
+      // Given services, else the slice's own (an independent stack: the whole project).
+      const targetServices = services.length > 0 ? services : (stack.serviceScope ?? []);
+
+      runComposeStreaming(stack.entrypoint, ["pull", ...targetServices], onLine)
         .then(pullResult => {
           if (!pullResult.success) {
             throw new Error(pullResult.stderr || "Pull failed");
           }
 
-          return runComposeStreaming(stack.entrypoint, ["up", "-d", ...services], onLine);
+          return runComposeStreaming(stack.entrypoint, ["up", "-d", ...targetServices], onLine);
         })
         .then(upResult => {
           broadcastStackAction(name, "update", upResult.success, upResult.stderr || undefined);
