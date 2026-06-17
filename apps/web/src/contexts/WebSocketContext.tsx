@@ -16,6 +16,12 @@ export interface DeployOutput {
   lines: DeployLine[];
   complete: boolean;
   success?: boolean;
+  /** The action that produced this output, so a name-conflict can be retried with it. */
+  action?: string;
+  /** Containers whose fixed name blocked the action; present only on a name-conflict failure. */
+  conflictContainers?: string[];
+  /** Service subset the action targeted, so a retry reuses the same scope. */
+  services?: string[];
 }
 
 export interface WebSocketContextValue {
@@ -118,7 +124,14 @@ export const WebSocketProvider = ({ children }: { children: React.ReactNode }) =
         case "stack:action":
           setDeployOutput(prev => {
             if (prev && prev.stackName === message.payload.stackName) {
-              return { ...prev, complete: true, success: message.payload.success };
+              return {
+                ...prev,
+                complete: true,
+                success: message.payload.success,
+                action: message.payload.action,
+                conflictContainers: message.payload.conflictContainers,
+                services: message.payload.services,
+              };
             }
 
             return prev;

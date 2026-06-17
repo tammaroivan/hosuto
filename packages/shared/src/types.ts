@@ -190,7 +190,16 @@ export interface WSStackOutputMessage {
 
 export interface WSStackActionMessage {
   type: "stack:action";
-  payload: { stackName: string; action: string; success: boolean; error?: string };
+  payload: {
+    stackName: string;
+    action: string;
+    success: boolean;
+    error?: string;
+    /** Names of containers whose fixed name blocked the action and must be removed to retry. */
+    conflictContainers?: string[];
+    /** Service subset the action targeted (an `update` of specific services), so a retry can reuse it. */
+    services?: string[];
+  };
 }
 
 export interface WSStackUpdatesMessage {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseDockerEventChunk } from "../docker-events";
+import { parseDockerEventChunk, parseNameConflicts } from "../docker-events";
 
 const makeDockerEvent = (action: string, id = "abc123", name = "test-container") => {
   return JSON.stringify({
@@ -86,5 +86,34 @@ describe("parseDockerEventChunk", () => {
 
     expect(messages).toHaveLength(1);
     expect(messages[0].payload.stackName).toBeNull();
+  });
+});
+
+describe("parseNameConflicts", () => {
+  const conflictLine = (name: string) =>
+    `Error response from daemon: Conflict. The container name "/${name}" is already in use by ` +
+    `container "e84d3989f4e6". You have to remove (or rename) that container to be able to reuse that name.`;
+
+  it("extracts the conflicting container name", () => {
+    expect(parseNameConflicts(conflictLine("sabnzbd"))).toEqual(["sabnzbd"]);
+  });
+
+  it("strips the leading slash from the reported name", () => {
+    const output = parseNameConflicts(conflictLine("gluetun"));
+    expect(output).toEqual(["gluetun"]);
+    expect(output[0].startsWith("/")).toBe(false);
+  });
+
+  it("dedupes and collects multiple conflicts", () => {
+    const output = [conflictLine("sabnzbd"), conflictLine("gluetun"), conflictLine("sabnzbd")].join(
+      "\n",
+    );
+    expect(parseNameConflicts(output)).toEqual(["sabnzbd", "gluetun"]);
+  });
+
+  it("returns an empty array for unrelated or empty output", () => {
+    expect(parseNameConflicts(undefined)).toEqual([]);
+    expect(parseNameConflicts("")).toEqual([]);
+    expect(parseNameConflicts("some other docker error")).toEqual([]);
   });
 });

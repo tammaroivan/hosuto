@@ -27,15 +27,45 @@ export const broadcast = (message: string): void => {
   }
 };
 
+const CONTAINER_NAME_CONFLICT_RE = /container name "\/?([^"]+)" is already in use/g;
+
+/**
+ * Extracts the names of containers that blocked an action because a container with a fixed
+ * `container_name` already exists and isn't owned by this Compose project. Docker reports
+ * this as `Conflict. The container name "/foo" is already in use ...`. Returns a deduped
+ * list (empty when the output carries no such conflict).
+ */
+export const parseNameConflicts = (output: string | undefined): string[] => {
+  if (!output) {
+    return [];
+  }
+
+  const names = new Set<string>();
+  for (const match of output.matchAll(CONTAINER_NAME_CONFLICT_RE)) {
+    names.add(match[1]);
+  }
+
+  return [...names];
+};
+
 export const broadcastStackAction = (
   stackName: string,
   action: string,
   success: boolean,
   error?: string,
+  services?: string[],
 ): void => {
+  const conflictContainers = success ? [] : parseNameConflicts(error);
   const message: WSStackActionMessage = {
     type: "stack:action",
-    payload: { stackName, action, success, error },
+    payload: {
+      stackName,
+      action,
+      success,
+      error,
+      ...(conflictContainers.length > 0 && { conflictContainers }),
+      ...(services && services.length > 0 && { services }),
+    },
   };
   broadcast(JSON.stringify(message));
 };

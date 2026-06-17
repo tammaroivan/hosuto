@@ -97,6 +97,28 @@ export const getContainer = async (containerId: string): Promise<Container> => {
   };
 };
 
+/**
+ * Force-removes containers by name or id. Missing containers (404) are treated as already
+ * gone so a retry stays idempotent; any other failure rejects. Used to clear a container
+ * whose fixed `container_name` blocks Compose from recreating its own (see the
+ * resolve-conflict route).
+ */
+export const removeContainers = async (names: string[]): Promise<void> => {
+  await Promise.all(
+    names.map(async name => {
+      try {
+        await docker.getContainer(name).remove({ force: true });
+      } catch (error) {
+        if ((error as { statusCode?: number }).statusCode === 404) {
+          return;
+        }
+
+        throw error;
+      }
+    }),
+  );
+};
+
 type MatchableStack = {
   name: string;
   entrypoint: string;

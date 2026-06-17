@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 import { scanStacksDirectory } from "../services/stack-scanner";
-import { listContainers, matchContainersToStacks } from "../services/docker";
+import { listContainers, matchContainersToStacks, removeContainers } from "../services/docker";
 import { runComposeStreaming } from "../services/compose-cli";
 import {
   broadcastStackAction,
@@ -13,6 +13,7 @@ import { createStack, StackValidationError, StackConflictError } from "../servic
 import { checkStackUpdates } from "../services/update-checker";
 import { getCachedUpdates, setCachedUpdates } from "../services/update-scheduler";
 import { DEFAULT_STACKS_DIR, computeStackStatus } from "@hosuto/shared";
+import type { Stack } from "@hosuto/shared";
 
 const stacksDir = process.env.STACKS_DIR || DEFAULT_STACKS_DIR;
 
@@ -35,6 +36,10 @@ const BASE_ARGS = {
 } satisfies Record<string, string[]>;
 
 type StackAction = keyof typeof BASE_ARGS;
+type RunnableAction = StackAction | "update";
+
+/** Actions a name-conflict can be retried with after the offending container is removed. */
+const RETRYABLE_ACTIONS = new Set<RunnableAction>(["up", "build-up", "update"]);
 
 /**
  * Compose args for an action. A scoped slice appends its services; a scoped `down`
@@ -52,6 +57,64 @@ const buildComposeArgs = (action: StackAction, serviceScope: string[] | null): s
   return [...BASE_ARGS[action], ...serviceScope];
 };
 
+type ActionTarget = Pick<Stack, "entrypoint" | "serviceScope">;
+
+/**
+ * Runs a stack action asynchronously, streaming output and broadcasting the final result.
+ * `update` pulls then recreates; everything else maps through `buildComposeArgs`. Fire and
+ * forget — progress and completion reach the client over the WS broadcast channel.
+ */
+const runComposeAction = (
+  stack: ActionTarget,
+  name: string,
+  action: RunnableAction,
+  services: string[],
+): void => {
+  const onLine = (line: string, key?: string) => broadcastStackOutput(name, line, key);
+
+  if (action === "update") {
+    // Given services, else the slice's own (an independent stack: the whole project).
+    const targetServices = services.length > 0 ? services : (stack.serviceScope ?? []);
+
+    runComposeStreaming(stack.entrypoint, ["pull", ...targetServices], onLine)
+      .then(pullResult => {
+        if (!pullResult.success) {
+          throw new Error(pullResult.stderr || "Pull failed");
+        }
+
+        return runComposeStreaming(stack.entrypoint, ["up", "-d", ...targetServices], onLine);
+      })
+      .then(upResult => {
+        broadcastStackAction(name, "update", upResult.success, upResult.stderr || undefined, services);
+        if (upResult.success) {
+          setCachedUpdates(name, {
+            stackName: name,
+            results: [],
+            lastChecked: new Date().toISOString(),
+            hasUpdates: false,
+          });
+          broadcastStackUpdates(name, { hasUpdates: false });
+        }
+      })
+      .catch(error => {
+        broadcastStackAction(name, "update", false, String(error));
+      });
+
+    return;
+  }
+
+  const composeArgs = buildComposeArgs(action, stack.serviceScope);
+
+  runComposeStreaming(stack.entrypoint, composeArgs, onLine)
+    .then(result => {
+      broadcastStackAction(name, action, result.success, result.stderr || undefined);
+    })
+    .catch(error => {
+      console.error(`Stack action "${action}" failed for "${name}":`, error);
+      broadcastStackAction(name, action, false, String(error));
+    });
+};
+
 const runStackAction = (ctx: Context, action: StackAction) => {
   const name = ctx.req.param("name");
   if (!name) {
@@ -63,18 +126,7 @@ const runStackAction = (ctx: Context, action: StackAction) => {
     return ctx.json({ error: "Stack not found" }, 404);
   }
 
-  const composeArgs = buildComposeArgs(action, stack.serviceScope);
-
-  runComposeStreaming(stack.entrypoint, composeArgs, (line, key) =>
-    broadcastStackOutput(name, line, key),
-  )
-    .then(result => {
-      broadcastStackAction(name, action, result.success, result.stderr || undefined);
-    })
-    .catch(error => {
-      console.error(`Stack action "${action}" failed for "${name}":`, error);
-      broadcastStackAction(name, action, false, String(error));
-    });
+  runComposeAction(stack, name, action, []);
 
   return ctx.json({ accepted: true }, 202);
 };
@@ -206,34 +258,58 @@ export const stacksRoute = new Hono()
         return ctx.json({ error: "Stack not found" }, 404);
       }
 
-      const onLine = (line: string, key?: string) => broadcastStackOutput(name, line, key);
+      runComposeAction(stack, name, "update", services);
 
-      // Given services, else the slice's own (an independent stack: the whole project).
-      const targetServices = services.length > 0 ? services : (stack.serviceScope ?? []);
+      return ctx.json({ accepted: true }, 202);
+    },
+  )
+  .post(
+    "/stacks/:name/resolve-conflict",
+    validator("json", (value, ctx) => {
+      const containers = value?.containers;
+      if (!Array.isArray(containers) || containers.some(item => typeof item !== "string")) {
+        return ctx.json({ error: "containers must be an array of strings" }, 400);
+      }
 
-      runComposeStreaming(stack.entrypoint, ["pull", ...targetServices], onLine)
-        .then(pullResult => {
-          if (!pullResult.success) {
-            throw new Error(pullResult.stderr || "Pull failed");
-          }
+      const action = value?.action;
+      if (typeof action !== "string" || !RETRYABLE_ACTIONS.has(action as RunnableAction)) {
+        return ctx.json({ error: "action must be one of up, build-up, update" }, 400);
+      }
 
-          return runComposeStreaming(stack.entrypoint, ["up", "-d", ...targetServices], onLine);
-        })
-        .then(upResult => {
-          broadcastStackAction(name, "update", upResult.success, upResult.stderr || undefined);
-          if (upResult.success) {
-            setCachedUpdates(name, {
-              stackName: name,
-              results: [],
-              lastChecked: new Date().toISOString(),
-              hasUpdates: false,
-            });
-            broadcastStackUpdates(name, { hasUpdates: false });
-          }
-        })
-        .catch(error => {
-          broadcastStackAction(name, "update", false, String(error));
-        });
+      const services = value?.services;
+      if (services !== undefined && !Array.isArray(services)) {
+        return ctx.json({ error: "services must be an array of strings" }, 400);
+      }
+
+      return {
+        containers: containers as string[],
+        action,
+        services: (services as string[] | undefined) ?? [],
+      };
+    }),
+    async ctx => {
+      const name = ctx.req.param("name");
+      const { containers, action, services } = ctx.req.valid("json");
+      const stack = findStack(name);
+      if (!stack) {
+        return ctx.json({ error: "Stack not found" }, 404);
+      }
+
+      for (const container of containers) {
+        broadcastStackOutput(name, `Removing conflicting container ${container}...`);
+      }
+
+      try {
+        await removeContainers(containers);
+      } catch (error) {
+        const message = `Failed to remove conflicting container: ${String(error)}`;
+        broadcastStackAction(name, action, false, message);
+
+        return ctx.json({ error: message }, 500);
+      }
+
+      // Safe: RETRYABLE_ACTIONS membership was checked in the validator above.
+      runComposeAction(stack, name, action as RunnableAction, services);
 
       return ctx.json({ accepted: true }, 202);
     },
