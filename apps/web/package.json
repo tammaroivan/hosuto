@@ -9,7 +9,7 @@
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "test": "vitest"
+    "test": "vitest run"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

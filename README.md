@@ -113,13 +113,13 @@ bun run build        # Build all packages
 bun run typecheck    # Type-check all packages
 bun run lint         # ESLint
 bun run format       # Prettier
-bun test             # Run tests
+bun run test         # Run tests
 ```
 
 Every pull request runs lint, type-check, tests, and a Docker image build via GitHub Actions (`.github/workflows/ci.yml`). Run the same checks locally before pushing:
 
 ```bash
-bun run lint && bun run typecheck && bun test
+bun run lint && bun run typecheck && bun run test
 ```
 
 ### Previewing unreleased builds
