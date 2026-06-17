@@ -4,7 +4,8 @@
   <p>
     <a href="#install">Install</a> &middot;
     <a href="#features">Features</a> &middot;
-    <a href="#development">Development</a>
+    <a href="#development">Development</a> &middot;
+    <a href="#releasing">Releasing</a>
   </p>
 </div>
 
@@ -19,7 +20,7 @@ Built for self-hosters who want a simple tool that works with their existing Doc
 ```yaml
 services:
   hosuto:
-    image: hosuto:latest
+    image: ghcr.io/tammaroivan/hosuto:latest
     ports:
       - "4678:4678"
     volumes:
@@ -37,6 +38,8 @@ docker compose up -d
 ```
 
 Open `http://your-server:4678`
+
+Images are published to the GitHub Container Registry. Use `:latest` for the newest stable release, or pin a version (`:0.1.0`, or `:0.1` to track patches) for reproducible deployments. Multi-arch images are built for `linux/amd64` and `linux/arm64`.
 
 ## Features
 
@@ -113,9 +116,38 @@ bun run format       # Prettier
 bun test             # Run tests
 ```
 
+Every pull request runs lint, type-check, tests, and a Docker image build via GitHub Actions (`.github/workflows/ci.yml`). Run the same checks locally before pushing:
+
+```bash
+bun run lint && bun run typecheck && bun test
+```
+
 ### Tech Stack
 
 Bun + Hono backend, React + Vite + TanStack Router frontend, Monaco editor, xterm.js terminal, Tailwind CSS v4, end-to-end type safety via Hono RPC, Turborepo monorepo.
+
+## Releasing
+
+Releases are driven by Git tags. Pushing a tag matching `v*` triggers `.github/workflows/release.yml`, which re-runs the checks, then builds and pushes a multi-arch image to `ghcr.io/tammaroivan/hosuto` and creates a GitHub Release with auto-generated notes.
+
+```bash
+git switch main && git pull
+git tag -a v0.1.0 -m "v0.1.0"
+git push origin v0.1.0
+```
+
+The tag becomes the image version and is reported at `/api/health`. A single tag publishes several image tags:
+
+| Image tag       | Points to                       |
+| --------------- | ------------------------------- |
+| `:0.1.0`        | This exact release              |
+| `:0.1`          | Latest patch on the `0.1` line  |
+| `:latest`       | Newest stable release           |
+| `:sha-<commit>` | The exact commit, for debugging |
+
+Versioning follows [semver](https://semver.org): patch (`v0.1.1`) for fixes, minor (`v0.2.0`) for backward-compatible features, major (`v1.0.0`) for breaking changes.
+
+**Prereleases** — tags containing a hyphen (e.g. `v0.2.0-rc.1`) publish the versioned and `sha` image tags but do **not** move `:latest`, so they can be tested without affecting stable users.
 
 ## License
 

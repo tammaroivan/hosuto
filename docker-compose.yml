@@ -1,7 +1,6 @@
 services:
   hosuto:
-    image: hosuto:latest
-    build: .
+    image: ghcr.io/tammaroivan/hosuto:latest
     ports:
       - "4678:4678"
     volumes:

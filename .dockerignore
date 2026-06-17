@@ -1,6 +1,8 @@
 node_modules
 .git
 .claude
+.env
+.env.local
 *.md
 apps/*/dist
 apps/*/node_modules

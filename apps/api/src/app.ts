@@ -8,7 +8,7 @@ import { containersRoute } from "./routes/containers";
 import { filesRoute } from "./routes/files";
 import { settingsRoute } from "./routes/settings";
 
-const isDev = Bun.env.NODE_ENV !== "production";
+const isDev = process.env.NODE_ENV !== "production";
 
 const app = new Hono();
 

@@ -9,7 +9,7 @@ import type {
 import { computeStackStatus } from "@hosuto/shared";
 import { docker } from "./docker-client";
 
-const selfId = Bun.env.HOSTNAME || "";
+const selfId = process.env.HOSTNAME || "";
 
 /**
  * Lists all Docker containers.

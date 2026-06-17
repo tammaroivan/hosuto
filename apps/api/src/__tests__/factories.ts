@@ -1,4 +1,4 @@
-import type { Stack } from "@hosuto/shared";
+import type { ComposeFile, Stack } from "@hosuto/shared";
 
 export const makeContainerInfo = (overrides: Record<string, unknown> = {}) => {
   return {
@@ -34,6 +34,18 @@ export const makeInspectInfo = (overrides: Record<string, unknown> = {}) => {
       StartedAt: "2026-01-01T00:00:00.000Z",
     },
     NetworkSettings: { Ports: {} },
+    ...overrides,
+  };
+};
+
+export const makeComposeFile = (overrides: Partial<ComposeFile> = {}): ComposeFile => {
+  return {
+    path: "/stacks/mystack/docker-compose.yml",
+    relativePath: "docker-compose.yml",
+    content: "",
+    services: [],
+    envFiles: [],
+    includedBy: null,
     ...overrides,
   };
 };

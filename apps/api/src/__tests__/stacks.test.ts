@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Stack } from "@hosuto/shared";
 import { app } from "../app";
-import { makeContainerInfo, makeStack } from "./factories";
+import { makeComposeFile, makeContainerInfo, makeStack } from "./factories";
 
 const mockDocker = vi.hoisted(() => ({
   listContainers: vi.fn(),
@@ -11,10 +11,13 @@ const mockDocker = vi.hoisted(() => ({
 const mockScan = vi.hoisted(() => vi.fn<() => Stack[]>());
 
 const mockCompose = vi.hoisted(() => ({
-  composeUp: vi.fn(),
-  composeDown: vi.fn(),
-  composeRestart: vi.fn(),
-  composePull: vi.fn(),
+  runComposeStreaming: vi.fn(),
+}));
+
+const mockEvents = vi.hoisted(() => ({
+  broadcastStackAction: vi.fn(),
+  broadcastStackOutput: vi.fn(),
+  broadcastStackUpdates: vi.fn(),
 }));
 
 vi.mock("../services/docker-client", () => ({
@@ -26,11 +29,18 @@ vi.mock("../services/stack-scanner", () => ({
 }));
 
 vi.mock("../services/compose-cli", () => ({
-  composeUp: (...args: unknown[]) => mockCompose.composeUp(...args),
-  composeDown: (...args: unknown[]) => mockCompose.composeDown(...args),
-  composeRestart: (...args: unknown[]) => mockCompose.composeRestart(...args),
-  composePull: (...args: unknown[]) => mockCompose.composePull(...args),
+  runComposeStreaming: (...args: unknown[]) => mockCompose.runComposeStreaming(...args),
 }));
+
+vi.mock("../services/docker-events", async importOriginal => {
+  const actual = await importOriginal<typeof import("../services/docker-events")>();
+  return {
+    ...actual,
+    broadcastStackAction: (...args: unknown[]) => mockEvents.broadcastStackAction(...args),
+    broadcastStackOutput: (...args: unknown[]) => mockEvents.broadcastStackOutput(...args),
+    broadcastStackUpdates: (...args: unknown[]) => mockEvents.broadcastStackUpdates(...args),
+  };
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -39,9 +49,19 @@ beforeEach(() => {
 
 describe("GET /api/stacks", () => {
   it("returns stacks with matched containers", async () => {
-    mockScan.mockReturnValue([makeStack(), makeStack({ name: "media" })]);
+    mockScan.mockReturnValue([
+      makeStack({ files: [makeComposeFile({ services: ["web"] })] }),
+      makeStack({ name: "media" }),
+    ]);
     mockDocker.listContainers.mockResolvedValue([
-      makeContainerInfo({ Id: "c1", Names: ["/nginx"] }),
+      makeContainerInfo({
+        Id: "c1",
+        Names: ["/web"],
+        Labels: {
+          "com.docker.compose.project": "mystack",
+          "com.docker.compose.service": "web",
+        },
+      }),
     ]);
 
     const res = await app.request("/api/stacks");
@@ -67,10 +87,28 @@ describe("GET /api/stacks", () => {
   });
 
   it("sets status to partial when some containers are stopped", async () => {
-    mockScan.mockReturnValue([makeStack()]);
+    mockScan.mockReturnValue([makeStack({ files: [makeComposeFile({ services: ["web", "db"] })] })]);
     mockDocker.listContainers.mockResolvedValue([
-      makeContainerInfo({ Id: "c1", Names: ["/web"], State: "running", Status: "Up 1 hour" }),
-      makeContainerInfo({ Id: "c2", Names: ["/db"], State: "exited", Status: "Exited (0)" }),
+      makeContainerInfo({
+        Id: "c1",
+        Names: ["/web"],
+        State: "running",
+        Status: "Up 1 hour",
+        Labels: {
+          "com.docker.compose.project": "mystack",
+          "com.docker.compose.service": "web",
+        },
+      }),
+      makeContainerInfo({
+        Id: "c2",
+        Names: ["/db"],
+        State: "exited",
+        Status: "Exited (0)",
+        Labels: {
+          "com.docker.compose.project": "mystack",
+          "com.docker.compose.service": "db",
+        },
+      }),
     ]);
 
     const res = await app.request("/api/stacks");
@@ -127,16 +165,26 @@ describe("GET /api/stacks", () => {
 });
 
 describe("POST /api/stacks/:name/up", () => {
-  it("runs compose up for the stack", async () => {
+  it("accepts and streams compose up for the stack", async () => {
     mockScan.mockReturnValue([makeStack()]);
-    mockCompose.composeUp.mockResolvedValue({ success: true, stdout: "Started\n", stderr: "" });
+    mockCompose.runComposeStreaming.mockResolvedValue({
+      success: true,
+      stdout: "Started\n",
+      stderr: "",
+    });
 
     const res = await app.request("/api/stacks/mystack/up", { method: "POST" });
 
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.success).toBe(true);
-    expect(mockCompose.composeUp).toHaveBeenCalledWith("/stacks/mystack/docker-compose.yml");
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ accepted: true });
+    expect(mockCompose.runComposeStreaming).toHaveBeenCalledWith(
+      "/stacks/mystack/docker-compose.yml",
+      ["up", "-d"],
+      expect.any(Function),
+    );
+    await vi.waitFor(() =>
+      expect(mockEvents.broadcastStackAction).toHaveBeenCalledWith("mystack", "up", true, undefined),
+    );
   });
 
   it("returns 404 for unknown stack", async () => {
@@ -145,32 +193,57 @@ describe("POST /api/stacks/:name/up", () => {
     const res = await app.request("/api/stacks/unknown/up", { method: "POST" });
 
     expect(res.status).toBe(404);
+    expect(mockCompose.runComposeStreaming).not.toHaveBeenCalled();
   });
 
-  it("returns 500 when compose fails", async () => {
+  it("broadcasts failure when compose fails", async () => {
     mockScan.mockReturnValue([makeStack()]);
-    mockCompose.composeUp.mockResolvedValue({ success: false, stdout: "", stderr: "error\n" });
+    mockCompose.runComposeStreaming.mockResolvedValue({
+      success: false,
+      stdout: "",
+      stderr: "error\n",
+    });
 
     const res = await app.request("/api/stacks/mystack/up", { method: "POST" });
 
-    expect(res.status).toBe(500);
-    const body = await res.json();
-    expect(body.error).toBe("error\n");
+    expect(res.status).toBe(202);
+    await vi.waitFor(() =>
+      expect(mockEvents.broadcastStackAction).toHaveBeenCalledWith(
+        "mystack",
+        "up",
+        false,
+        "error\n",
+      ),
+    );
   });
 });
 
 describe("POST /api/stacks/:name/down", () => {
-  it("runs compose down for the stack", async () => {
+  it("accepts and streams compose down for the stack", async () => {
     mockScan.mockReturnValue([makeStack()]);
-    mockCompose.composeDown.mockResolvedValue({ success: true, stdout: "Stopped\n", stderr: "" });
+    mockCompose.runComposeStreaming.mockResolvedValue({
+      success: true,
+      stdout: "Stopped\n",
+      stderr: "",
+    });
 
     const res = await app.request("/api/stacks/mystack/down", { method: "POST" });
 
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.success).toBe(true);
-    expect(body.output).toBe("Stopped\n");
-    expect(mockCompose.composeDown).toHaveBeenCalledWith("/stacks/mystack/docker-compose.yml");
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ accepted: true });
+    expect(mockCompose.runComposeStreaming).toHaveBeenCalledWith(
+      "/stacks/mystack/docker-compose.yml",
+      ["down"],
+      expect.any(Function),
+    );
+    await vi.waitFor(() =>
+      expect(mockEvents.broadcastStackAction).toHaveBeenCalledWith(
+        "mystack",
+        "down",
+        true,
+        undefined,
+      ),
+    );
   });
 
   it("returns 404 for unknown stack", async () => {
@@ -183,9 +256,9 @@ describe("POST /api/stacks/:name/down", () => {
     expect(body.error).toBe("Stack not found");
   });
 
-  it("returns 500 when compose fails", async () => {
+  it("broadcasts failure when compose fails", async () => {
     mockScan.mockReturnValue([makeStack()]);
-    mockCompose.composeDown.mockResolvedValue({
+    mockCompose.runComposeStreaming.mockResolvedValue({
       success: false,
       stdout: "",
       stderr: "network mystack_default not found\n",
@@ -193,23 +266,40 @@ describe("POST /api/stacks/:name/down", () => {
 
     const res = await app.request("/api/stacks/mystack/down", { method: "POST" });
 
-    expect(res.status).toBe(500);
-    const body = await res.json();
-    expect(body.error).toBe("network mystack_default not found\n");
+    expect(res.status).toBe(202);
+    await vi.waitFor(() =>
+      expect(mockEvents.broadcastStackAction).toHaveBeenCalledWith(
+        "mystack",
+        "down",
+        false,
+        "network mystack_default not found\n",
+      ),
+    );
   });
 });
 
 describe("POST /api/stacks/:name/restart", () => {
-  it("runs compose restart for the stack", async () => {
+  it("accepts and streams compose restart for the stack", async () => {
     mockScan.mockReturnValue([makeStack()]);
-    mockCompose.composeRestart.mockResolvedValue({ success: true, stdout: "", stderr: "" });
+    mockCompose.runComposeStreaming.mockResolvedValue({ success: true, stdout: "", stderr: "" });
 
     const res = await app.request("/api/stacks/mystack/restart", { method: "POST" });
 
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.success).toBe(true);
-    expect(mockCompose.composeRestart).toHaveBeenCalledWith("/stacks/mystack/docker-compose.yml");
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ accepted: true });
+    expect(mockCompose.runComposeStreaming).toHaveBeenCalledWith(
+      "/stacks/mystack/docker-compose.yml",
+      ["restart"],
+      expect.any(Function),
+    );
+    await vi.waitFor(() =>
+      expect(mockEvents.broadcastStackAction).toHaveBeenCalledWith(
+        "mystack",
+        "restart",
+        true,
+        undefined,
+      ),
+    );
   });
 
   it("returns 404 for unknown stack", async () => {
@@ -222,9 +312,9 @@ describe("POST /api/stacks/:name/restart", () => {
     expect(body.error).toBe("Stack not found");
   });
 
-  it("returns 500 when compose fails", async () => {
+  it("broadcasts failure when compose fails", async () => {
     mockScan.mockReturnValue([makeStack()]);
-    mockCompose.composeRestart.mockResolvedValue({
+    mockCompose.runComposeStreaming.mockResolvedValue({
       success: false,
       stdout: "",
       stderr: "no containers to restart\n",
@@ -232,24 +322,44 @@ describe("POST /api/stacks/:name/restart", () => {
 
     const res = await app.request("/api/stacks/mystack/restart", { method: "POST" });
 
-    expect(res.status).toBe(500);
-    const body = await res.json();
-    expect(body.error).toBe("no containers to restart\n");
+    expect(res.status).toBe(202);
+    await vi.waitFor(() =>
+      expect(mockEvents.broadcastStackAction).toHaveBeenCalledWith(
+        "mystack",
+        "restart",
+        false,
+        "no containers to restart\n",
+      ),
+    );
   });
 });
 
 describe("POST /api/stacks/:name/pull", () => {
-  it("runs compose pull for the stack", async () => {
+  it("accepts and streams compose pull for the stack", async () => {
     mockScan.mockReturnValue([makeStack()]);
-    mockCompose.composePull.mockResolvedValue({ success: true, stdout: "Pulled\n", stderr: "" });
+    mockCompose.runComposeStreaming.mockResolvedValue({
+      success: true,
+      stdout: "Pulled\n",
+      stderr: "",
+    });
 
     const res = await app.request("/api/stacks/mystack/pull", { method: "POST" });
 
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.success).toBe(true);
-    expect(body.output).toBe("Pulled\n");
-    expect(mockCompose.composePull).toHaveBeenCalledWith("/stacks/mystack/docker-compose.yml");
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ accepted: true });
+    expect(mockCompose.runComposeStreaming).toHaveBeenCalledWith(
+      "/stacks/mystack/docker-compose.yml",
+      ["pull"],
+      expect.any(Function),
+    );
+    await vi.waitFor(() =>
+      expect(mockEvents.broadcastStackAction).toHaveBeenCalledWith(
+        "mystack",
+        "pull",
+        true,
+        undefined,
+      ),
+    );
   });
 
   it("returns 404 for unknown stack", async () => {
@@ -262,9 +372,9 @@ describe("POST /api/stacks/:name/pull", () => {
     expect(body.error).toBe("Stack not found");
   });
 
-  it("returns 500 when pull fails", async () => {
+  it("broadcasts failure when pull fails", async () => {
     mockScan.mockReturnValue([makeStack()]);
-    mockCompose.composePull.mockResolvedValue({
+    mockCompose.runComposeStreaming.mockResolvedValue({
       success: false,
       stdout: "",
       stderr: "manifest unknown\n",
@@ -272,9 +382,15 @@ describe("POST /api/stacks/:name/pull", () => {
 
     const res = await app.request("/api/stacks/mystack/pull", { method: "POST" });
 
-    expect(res.status).toBe(500);
-    const body = await res.json();
-    expect(body.error).toBe("manifest unknown\n");
+    expect(res.status).toBe(202);
+    await vi.waitFor(() =>
+      expect(mockEvents.broadcastStackAction).toHaveBeenCalledWith(
+        "mystack",
+        "pull",
+        false,
+        "manifest unknown\n",
+      ),
+    );
   });
 
   it("uses correct entrypoint for stack with custom path", async () => {
@@ -284,11 +400,15 @@ describe("POST /api/stacks/:name/pull", () => {
         entrypoint: "/stacks/media/compose.yml",
       }),
     ]);
-    mockCompose.composePull.mockResolvedValue({ success: true, stdout: "", stderr: "" });
+    mockCompose.runComposeStreaming.mockResolvedValue({ success: true, stdout: "", stderr: "" });
 
     const res = await app.request("/api/stacks/media/pull", { method: "POST" });
 
-    expect(res.status).toBe(200);
-    expect(mockCompose.composePull).toHaveBeenCalledWith("/stacks/media/compose.yml");
+    expect(res.status).toBe(202);
+    expect(mockCompose.runComposeStreaming).toHaveBeenCalledWith(
+      "/stacks/media/compose.yml",
+      ["pull"],
+      expect.any(Function),
+    );
   });
 });
